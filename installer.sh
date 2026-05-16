@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ============================================================
-# FAHTECH AUTOMATION - FIXED VERSION
-# Untuk Debian/Ubuntu (Support MariaDB)
+# FAHTECH AUTOMATION - TJKT SMK WIKRAMA
+# FULLY FIXED VERSION
 # ============================================================
 
 clear_screen() {
@@ -26,38 +26,16 @@ banner() {
     echo ""
 }
 
-# Deteksi OS
-detect_os() {
-    if command -v apt &> /dev/null; then
-        if grep -qi "debian" /etc/os-release; then
-            echo "debian"
-        else
-            echo "ubuntu"
-        fi
-    else
-        echo "unknown"
-    fi
-}
-
-OS=$(detect_os)
-
-# Fungsi install database server (MariaDB untuk Debian, MySQL untuk Ubuntu)
-install_db_server() {
-    if [ "$OS" = "debian" ]; then
-        apt install -y mariadb-server mariadb-client
-        systemctl start mariadb
-        systemctl enable mariadb
-    else
-        apt install -y mysql-server
-    fi
-}
-
 get_ips() {
     ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v 127.0.0.1
 }
 
 pilih_ip() {
-    local IP_LIST=($(get_ips))
+    local IP_LIST=()
+    while IFS= read -r line; do
+        IP_LIST+=("$line")
+    done < <(get_ips)
+    
     if [ ${#IP_LIST[@]} -eq 0 ]; then
         echo "[ERROR] Tidak ada IP terdeteksi!"
         exit 1
@@ -68,7 +46,8 @@ pilih_ip() {
     echo "============================================================"
     
     for i in "${!IP_LIST[@]}"; do
-        echo "  $((i+1).) ${IP_LIST[$i]}"
+        local num=$((i+1))
+        echo "  $num. ${IP_LIST[$i]}"
     done
     
     echo ""
@@ -84,8 +63,6 @@ pilih_ip() {
     echo ""
     sleep 1
 }
-
-# ==================== SERVICE FUNCTIONS ====================
 
 # 1. Apache2 + Landing Page
 install_apache_landing() {
@@ -118,10 +95,10 @@ install_apache_landing() {
             max-width: 700px;
             margin: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            animation: fadeIn 1s ease-in;
+            animation: fadeIn 0.8s ease-in;
         }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-20px); }
+            from { opacity: 0; transform: translateY(-30px); }
             to { opacity: 1; transform: translateY(0); }
         }
         h1 {
@@ -131,11 +108,8 @@ install_apache_landing() {
             -webkit-text-fill-color: transparent;
             margin-bottom: 10px;
         }
-        .tagline {
-            font-size: 1.2em;
-            color: #4a5568;
-            margin: 20px 0;
-        }
+        h2 { color: #4a5568; margin-bottom: 20px; font-size: 1.2em; }
+        .tagline { font-size: 1.2em; color: #4a5568; margin: 20px 0; }
         .features {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -263,144 +237,86 @@ EOF
     echo ""
 }
 
-# 4. Triple DNS Server (DIPERBAIKI)
+# 4. Triple DNS Server
 install_dns_triple() {
     echo "[INSTALL] Memulai instalasi 3 DNS Server..."
     pilih_ip
     
     declare -a DOMAINS
     
-    # Hapus konfigurasi lama
-    rm -f /etc/bind/named.conf.local
-    touch /etc/bind/named.conf.local
-    
-    for i in {1..3}; do
+    for i in 1 2 3; do
         read -p "Masukkan domain ke-$i (contoh: domain$i.com): " DOM
         
-        # Buat folder untuk web
         mkdir -p /var/www/$DOM
         
-        # Buat file HTML dengan konten yang berbeda-beda
         cat > /var/www/$DOM/index.html << EOF
 <!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>$DOM - TJKT Wikrama</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #${RANDOM:0:6}, #${RANDOM:0:6});
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .card {
-            background: white;
-            border-radius: 20px;
-            padding: 50px;
-            text-align: center;
-            max-width: 600px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        h1 { color: #667eea; margin-bottom: 20px; font-size: 2.5em; }
-        .domain { color: #764ba2; font-size: 1.2em; margin: 20px 0; }
-        .info { background: #f0f0f0; padding: 15px; border-radius: 10px; margin: 20px 0; }
-        .badge {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            margin-top: 20px;
-        }
-    </style>
+<html>
+<head><title>$DOM - Fahtech Service</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 50px;
+    background: linear-gradient(135deg, #${RANDOM:0:6}, #${RANDOM:0:6});
+    color: white;
+}
+</style>
 </head>
 <body>
-    <div class="card">
-        <h1>🚀 $DOM</h1>
-        <div class="domain">✨ Layanan DNS Server Ke-$i ✨</div>
-        <div class="info">
-            <p>🏫 TJKT SMK WIKRAMA</p>
-            <p>📡 Teknik Jaringan & Telekomunikasi</p>
-            <p>🔧 Dikonfigurasi oleh Fahtech Automation</p>
-        </div>
-        <div class="badge">✅ DNS Resolving Aktif</div>
-    </div>
+<h1>🚀 Selamat datang di $DOM</h1>
+<h2>Layanan DNS Ke-$i - TJKT SMK Wikrama</h2>
+<p>Ini adalah website khusus untuk domain $DOM</p>
+<p>Dikonfigurasi oleh Fahtech Automation</p>
 </body>
 </html>
 EOF
         
         DOMAINS[$i]=$DOM
-        
-        # Konfigurasi BIND untuk domain
+    done
+    
+    apt update && apt install -y bind9 apache2
+    
+    for i in 1 2 3; do
         cat >> /etc/bind/named.conf.local << EOF
-zone "$DOM" {
+zone "${DOMAINS[$i]}" {
     type master;
-    file "/etc/bind/db.$DOM";
+    file "/etc/bind/db.${DOMAINS[$i]}";
 };
 EOF
 
-        # File zone BIND
-        cat > /etc/bind/db.$DOM << EOF
+        cat > /etc/bind/db.${DOMAINS[$i]} << EOF
 \$TTL    604800
-@       IN      SOA     ns.$DOM. admin.$DOM. (
+@       IN      SOA     ns.${DOMAINS[$i]}. admin.${DOMAINS[$i]}. (
                   2025010101
                   604800
                   86400
                   2419200
                   604800 )
-@       IN      NS      ns.$DOM.
+@       IN      NS      ns.${DOMAINS[$i]}.
 @       IN      A       $SELECTED_IP
 ns      IN      A       $SELECTED_IP
 www     IN      A       $SELECTED_IP
-*       IN      A       $SELECTED_IP
 EOF
 
-        # Konfigurasi Apache VirtualHost
-        cat > /etc/apache2/sites-available/$DOM.conf << EOF
+        cat > /etc/apache2/sites-available/${DOMAINS[$i]}.conf << EOF
 <VirtualHost *:80>
-    ServerName $DOM
-    ServerAlias www.$DOM
-    DocumentRoot /var/www/$DOM
-    <Directory /var/www/$DOM>
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-    ErrorLog \${APACHE_LOG_DIR}/${DOM}_error.log
-    CustomLog \${APACHE_LOG_DIR}/${DOM}_access.log combined
+    ServerName ${DOMAINS[$i]}
+    ServerAlias www.${DOMAINS[$i]}
+    DocumentRoot /var/www/${DOMAINS[$i]}
 </VirtualHost>
 EOF
-        
-        # Enable site
-        a2ensite $DOM.conf 2>/dev/null
+        a2ensite ${DOMAINS[$i]}.conf 2>/dev/null
     done
     
-    # Install packages
-    apt update && apt install -y bind9 apache2
-    
-    # Restart semua service
     systemctl restart bind9
     systemctl reload apache2
     
-    # Tambahkan ke /etc/hosts (opsional)
-    for i in {1..3}; do
-        echo "$SELECTED_IP ${DOMAINS[$i]} www.${DOMAINS[$i]}" >> /etc/hosts
-    done
-    
     echo ""
     echo "[SUCCESS] 3 DNS Server BERHASIL!"
-    echo "============================================================"
-    for i in {1..3}; do
-        echo "  DOMAIN $i: http://${DOMAINS[$i]}"
+    for i in 1 2 3; do
+        echo "[DOMAIN $i] http://${DOMAINS[$i]}"
     done
-    echo "============================================================"
-    echo "[INFO] Pastikan DNS client mengarah ke $SELECTED_IP"
-    echo "[TEST] nslookup ${DOMAINS[1]} $SELECTED_IP"
     echo ""
 }
 
@@ -437,7 +353,7 @@ EOF
     echo ""
     echo "[SUCCESS] FTP Server BERHASIL!"
     echo "[SERVER] ftp://$SELECTED_IP"
-    echo "[USER] ftpuser / PASSWORD: wikrama123"
+    echo "[USER] ftpuser / PASS: wikrama123"
     echo ""
 }
 
@@ -471,17 +387,21 @@ EOF
     echo ""
 }
 
-# 7. CRUD Application (DIPERBAIKI untuk Debian)
+# 7. CRUD Application (Fixed for Debian)
 install_crud() {
     echo "[INSTALL] Memulai instalasi CRUD Application..."
     pilih_ip
     apt update
     apt install -y apache2 php php-mysql libapache2-mod-php
     
-    # Install database server (MariaDB untuk Debian)
-    install_db_server
+    if command -v mysql &> /dev/null; then
+        echo "MySQL sudah terinstall"
+    else
+        apt install -y mariadb-server mariadb-client
+        systemctl start mariadb
+        systemctl enable mariadb
+    fi
     
-    # Setup database
     mysql << EOF
 CREATE DATABASE IF NOT EXISTS siswa_wikrama;
 USE siswa_wikrama;
@@ -494,192 +414,88 @@ CREATE TABLE IF NOT EXISTS data_siswa (
 );
 INSERT IGNORE INTO data_siswa (nis, nama, rombel, rayon) VALUES 
 ('12345', 'Ahmad Fahtech', 'TJKT-1', 'Ciawi'),
-('12346', 'Budi Santoso', 'TJKT-2', 'Bogor'),
-('12347', 'Citra Dewi', 'TJKT-1', 'Sukasari'),
-('12348', 'Dani Ramdani', 'TJKT-3', 'Cibinong');
+('12346', 'Budi Santoso', 'TJKT-2', 'Bogor');
 EOF
     
     cat > /var/www/html/crud.php << 'EOF'
+<?php
+$conn = new mysqli('localhost', 'root', '', 'siswa_wikrama');
+if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
+
+if(isset($_POST['add'])) {
+    $conn->query("INSERT INTO data_siswa (nis, nama, rombel, rayon) VALUES 
+        ('{$_POST['nis']}', '{$_POST['nama']}', '{$_POST['rombel']}', '{$_POST['rayon']}')");
+    echo "<script>alert('Data ditambahkan!'); window.location='crud.php';</script>";
+}
+
+if(isset($_POST['update'])) {
+    $conn->query("UPDATE data_siswa SET nis='{$_POST['nis']}', nama='{$_POST['nama']}', 
+        rombel='{$_POST['rombel']}', rayon='{$_POST['rayon']}' WHERE id={$_POST['id']}");
+    echo "<script>alert('Data diupdate!'); window.location='crud.php';</script>";
+}
+
+if(isset($_GET['delete'])) {
+    $conn->query("DELETE FROM data_siswa WHERE id={$_GET['delete']}");
+    echo "<script>alert('Data dihapus!'); window.location='crud.php';</script>";
+}
+
+$edit = null;
+if(isset($_GET['edit'])) {
+    $result = $conn->query("SELECT * FROM data_siswa WHERE id={$_GET['edit']}");
+    $edit = $result->fetch_assoc();
+}
+?>
 <!DOCTYPE html>
 <html>
 <head>
     <title>CRUD Siswa - TJKT Wikrama</title>
-    <meta charset="UTF-8">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        h1 { color: #667eea; margin-bottom: 5px; }
-        h2 { color: #764ba2; margin-bottom: 20px; font-size: 1.2em; }
-        .form-group {
-            display: inline-block;
-            margin-right: 10px;
-            margin-bottom: 15px;
-        }
-        input, select {
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            width: 200px;
-        }
-        button {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 10px 25px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        button:hover { opacity: 0.9; transform: scale(1.02); }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
+        body { font-family: Arial; background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; }
+        h1, h2 { color: #667eea; }
+        input, select { width: 100%; padding: 10px; margin: 5px 0 15px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background: #667eea; color: white; }
-        tr:hover { background: #f5f5f5; }
-        .edit-btn {
-            background: #4CAF50;
-            color: white;
-            padding: 5px 10px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin-right: 5px;
-        }
-        .delete-btn {
-            background: #f44336;
-            color: white;
-            padding: 5px 10px;
-            text-decoration: none;
-            border-radius: 5px;
-        }
-        .success {
-            background: #d4edda;
-            color: #155724;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        .stats {
-            background: #e7f3ff;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px 0;
-        }
+        .edit { color: green; text-decoration: none; margin-right: 10px; }
+        .delete { color: red; text-decoration: none; }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>🚀 TJKT SMK WIKRAMA</h1>
-    <h2>📚 Manajemen Data Siswa (Create, Read, Update, Delete)</h2>
-    
-    <?php
-    $conn = new mysqli('localhost', 'root', '', 'siswa_wikrama');
-    if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
-    
-    // Create
-    if(isset($_POST['add'])) {
-        $nis = $_POST['nis'];
-        $nama = $_POST['nama'];
-        $rombel = $_POST['rombel'];
-        $rayon = $_POST['rayon'];
-        $sql = "INSERT INTO data_siswa (nis, nama, rombel, rayon) VALUES ('$nis', '$nama', '$rombel', '$rayon')";
-        if($conn->query($sql)) echo "<div class='success'>✅ Data berhasil ditambahkan!</div>";
-        else echo "<div class='success' style='background:#f8d7da;color:#721c24;'>❌ Error: " . $conn->error . "</div>";
-    }
-    
-    // Update
-    if(isset($_POST['update'])) {
-        $id = $_POST['id'];
-        $nis = $_POST['nis'];
-        $nama = $_POST['nama'];
-        $rombel = $_POST['rombel'];
-        $rayon = $_POST['rayon'];
-        $sql = "UPDATE data_siswa SET nis='$nis', nama='$nama', rombel='$rombel', rayon='$rayon' WHERE id=$id";
-        if($conn->query($sql)) echo "<div class='success'>✅ Data berhasil diupdate!</div>";
-    }
-    
-    // Delete
-    if(isset($_GET['delete'])) {
-        $id = $_GET['delete'];
-        $conn->query("DELETE FROM data_siswa WHERE id=$id");
-        echo "<div class='success'>✅ Data berhasil dihapus!</div>";
-    }
-    
-    $edit_data = null;
-    if(isset($_GET['edit'])) {
-        $id = $_GET['edit'];
-        $result = $conn->query("SELECT * FROM data_siswa WHERE id=$id");
-        $edit_data = $result->fetch_assoc();
-    }
-    
-    // Hitung jumlah siswa
-    $total = $conn->query("SELECT COUNT(*) as total FROM data_siswa")->fetch_assoc()['total'];
-    ?>
-    
-    <div class="stats">
-        📊 Total Data Siswa: <strong><?php echo $total; ?></strong> orang
-    </div>
-    
+    <h2>Manajemen Data Siswa (CRUD)</h2>
     <form method="POST">
-        <input type="hidden" name="id" value="<?php echo $edit_data['id'] ?? ''; ?>">
-        <div class="form-group">
-            <input type="text" name="nis" placeholder="NIS" value="<?php echo $edit_data['nis'] ?? ''; ?>" required>
-        </div>
-        <div class="form-group">
-            <input type="text" name="nama" placeholder="Nama Lengkap" value="<?php echo $edit_data['nama'] ?? ''; ?>" required>
-        </div>
-        <div class="form-group">
-            <input type="text" name="rombel" placeholder="Rombel (contoh: TJKT-1)" value="<?php echo $edit_data['rombel'] ?? ''; ?>" required>
-        </div>
-        <div class="form-group">
-            <input type="text" name="rayon" placeholder="Rayon (contoh: Ciawi)" value="<?php echo $edit_data['rayon'] ?? ''; ?>" required>
-        </div>
-        <?php if($edit_data): ?>
-            <button type="submit" name="update">🔄 Update Data</button>
-            <a href="crud.php" style="margin-left:10px;">➕ Tambah Baru</a>
+        <input type="hidden" name="id" value="<?= $edit['id'] ?? '' ?>">
+        <input type="text" name="nis" placeholder="NIS" value="<?= $edit['nis'] ?? '' ?>" required>
+        <input type="text" name="nama" placeholder="Nama Lengkap" value="<?= $edit['nama'] ?? '' ?>" required>
+        <input type="text" name="rombel" placeholder="Rombel" value="<?= $edit['rombel'] ?? '' ?>" required>
+        <input type="text" name="rayon" placeholder="Rayon" value="<?= $edit['rayon'] ?? '' ?>" required>
+        <?php if($edit): ?>
+            <button type="submit" name="update">Update Data</button>
+            <a href="crud.php">Batal</a>
         <?php else: ?>
-            <button type="submit" name="add">➕ Tambah Data</button>
+            <button type="submit" name="add">Tambah Data</button>
         <?php endif; ?>
     </form>
-    
-    <h3>📋 Daftar Siswa:</h3>
+    <h3>Data Siswa:</h3>
     <table>
-        <tr>
-            <th>ID</th><th>NIS</th><th>Nama</th><th>Rombel</th><th>Rayon</th><th>Aksi</th>
-        </tr>
+        <tr><th>ID</th><th>NIS</th><th>Nama</th><th>Rombel</th><th>Rayon</th><th>Aksi</th></tr>
         <?php
         $result = $conn->query("SELECT * FROM data_siswa ORDER BY id DESC");
         while($row = $result->fetch_assoc()):
         ?>
         <tr>
-            <td><?php echo $row['id']; ?></td>
-            <td><?php echo $row['nis']; ?></td>
-            <td><?php echo $row['nama']; ?></td>
-            <td><?php echo $row['rombel']; ?></td>
-            <td><?php echo $row['rayon']; ?></td>
+            <td><?= $row['id'] ?></td>
+            <td><?= $row['nis'] ?></td>
+            <td><?= $row['nama'] ?></td>
+            <td><?= $row['rombel'] ?></td>
+            <td><?= $row['rayon'] ?></td>
             <td>
-                <a href="crud.php?edit=<?php echo $row['id']; ?>" class="edit-btn">✏️ Edit</a>
-                <a href="crud.php?delete=<?php echo $row['id']; ?>" class="delete-btn" onclick="return confirm('Yakin hapus?')">🗑️ Hapus</a>
+                <a href="crud.php?edit=<?= $row['id'] ?>" class="edit">Edit</a>
+                <a href="crud.php?delete=<?= $row['id'] ?>" class="delete" onclick="return confirm('Yakin?')">Hapus</a>
             </td>
         </tr>
         <?php endwhile; ?>
@@ -695,7 +511,6 @@ EOF
     echo ""
     echo "[SUCCESS] CRUD Application BERHASIL!"
     echo "[ACCESS] http://$SELECTED_IP/crud.php"
-    echo "[INFO] Fitur: Tambah, Edit, Hapus data siswa (NIS, Nama, Rombel, Rayon)"
     echo ""
 }
 
@@ -706,7 +521,13 @@ install_wordpress() {
     apt update
     apt install -y apache2 php php-mysql php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip libapache2-mod-php
     
-    install_db_server
+    if command -v mysql &> /dev/null; then
+        echo "MySQL sudah terinstall"
+    else
+        apt install -y mariadb-server mariadb-client
+        systemctl start mariadb
+        systemctl enable mariadb
+    fi
     
     DB_PASS=$(openssl rand -base64 12)
     mysql << EOF
@@ -732,7 +553,7 @@ EOF
     echo ""
     echo "[SUCCESS] WordPress BERHASIL!"
     echo "[ACCESS] http://$SELECTED_IP/wp-admin/install.php"
-    echo "[DB] wordpress | USER: wpuser | PASS: $DB_PASS"
+    echo "[DB PASS] $DB_PASS"
     echo ""
 }
 
@@ -785,8 +606,7 @@ EOF
     echo ""
     echo "[SUCCESS] Mail Server BERHASIL!"
     echo "[DOMAIN] $MAIL_DOMAIN"
-    echo "[USER] admin / PASSWORD: wikramamail123"
-    echo "[TEST] echo 'test email' | mail -s 'Test' admin@$MAIL_DOMAIN"
+    echo "[USER] admin / PASS: wikramamail123"
     echo ""
 }
 
@@ -796,18 +616,19 @@ install_zabbix() {
     pilih_ip
     apt update && apt install -y wget gnupg2
     
-    if [ "$OS" = "debian" ]; then
-        wget -q https://repo.zabbix.com/zabbix/6.4/debian/pool/main/z/zabbix-release/zabbix-release_6.4-1+debian12_all.deb
-        dpkg -i zabbix-release_6.4-1+debian12_all.deb
-    else
-        wget -q https://repo.zabbix.com/zabbix/6.4/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.4-1+ubuntu22.04_all.deb
-        dpkg -i zabbix-release_6.4-1+ubuntu22.04_all.deb
-    fi
-    
+    wget -q https://repo.zabbix.com/zabbix/6.4/debian/pool/main/z/zabbix-release/zabbix-release_6.4-1+debian12_all.deb
+    dpkg -i zabbix-release_6.4-1+debian12_all.deb
     apt update
+    
     apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent
     
-    install_db_server
+    if command -v mysql &> /dev/null; then
+        echo "MySQL sudah terinstall"
+    else
+        apt install -y mariadb-server mariadb-client
+        systemctl start mariadb
+        systemctl enable mariadb
+    fi
     
     mysql << EOF
 CREATE DATABASE zabbix CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
@@ -913,8 +734,8 @@ while true; do
             exit 0 
             ;;
         *) 
-            echo "Pilihan salah! Tekan Enter..."
-            read 
+            echo "Pilihan salah!"
+            sleep 1
             ;;
     esac
     
