@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ============================================================
-#   FAHTECH - ULTIMATE FULL AUTO INSTALLER
-#   ALL SERVICE: DHCP + DNS + FTP + SAMBA + MAIL + APACHE2
-#   + WORDPRESS + CRUD + WEBMAIL + ZABBIX
+#   FAHTECH - ULTIMATE FULL AUTO INSTALLER v24.0
+#   4 DNS SERVER + DHCP + FTP + SAMBA + MAIL + APACHE2
+#   + WORDPRESS + CRUD + WEBMAIL + ZABBIX (14 SERVICES)
 # ============================================================
 
 RED='\033[0;31m'
@@ -26,8 +26,9 @@ echo "║   ██╔══╝  ██╔══██║██╔══██║
 echo "║   ██║     ██║  ██║██║  ██║   ██║   ███████╗╚██████╗██║  ██║                 ║"
 echo "║   ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝                 ║"
 echo "║                                                                              ║"
-echo "║              ULTIMATE FULL AUTO INSTALLER v23.0                             ║"
-echo "║     DHCP + DNS + FTP + SAMBA + MAIL + APACHE2 + WP + CRUD + ZABBIX          ║"
+echo "║              ULTIMATE FULL AUTO INSTALLER v24.0                             ║"
+echo "║   4 DNS + DHCP + FTP + SAMBA + MAIL + APACHE2 + WP + CRUD + ZABBIX          ║"
+echo "║                         14 SERVICES LENGKAP                                 ║"
 echo "╚══════════════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -37,9 +38,6 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 SERVER_IP=$(hostname -I | awk '{print $1}')
-DOMAIN_UTAMA=""
-EMAIL_USER=""
-EMAIL_PASS=""
 
 detect_interfaces() {
     INTERFACES=()
@@ -65,17 +63,42 @@ show_interfaces() {
     echo -e "${GREEN}└─────┴─────────────────────┴─────────────────────────────────┘${NC}"
 }
 
-# ======================= 1. APACHE2 =======================
+# ======================= FIX DNS RESOLVER =======================
+fix_dns_resolver() {
+    echo -e "${YELLOW}🔧 Memperbaiki DNS resolver...${NC}"
+    cat > /etc/resolv.conf <<EOF
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+EOF
+    apt install -y resolvconf 2>/dev/null
+    echo "nameserver 8.8.8.8" > /etc/resolvconf/resolv.conf.d/head
+    echo "nameserver 8.8.4.4" >> /etc/resolvconf/resolv.conf.d/head
+    systemctl restart resolvconf 2>/dev/null
+}
+
+# ======================= 1. APACHE2 (PILIH IP) =======================
 install_apache2() {
     clear
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║              🌍 INSTALL APACHE2                ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════╝${NC}"
     
+    show_interfaces
+    echo -e "\n${YELLOW}👉 Pilih IP untuk Apache2 (pilih nomor interface):${NC}"
+    read -p "Nomor [1-${#INTERFACES[@]}]: " choice
+    
+    if [[ $choice -ge 1 && $choice -le ${#INTERFACES[@]} ]]; then
+        IFS='|' read -r APACHE_IFACE APACHE_IP <<< "${INTERFACES[$((choice-1))]}"
+        echo -e "${GREEN}✅ Menggunakan IP: $APACHE_IP (Interface: $APACHE_IFACE)${NC}"
+    else
+        APACHE_IP=$SERVER_IP
+        echo -e "${YELLOW}⚠️ Menggunakan IP default: $APACHE_IP${NC}"
+    fi
+    
     apt update -qq
     apt install -y apache2 php libapache2-mod-php php-mysql php-sqlite3 php-curl php-gd php-xml php-mbstring php-zip wget curl unzip
     
-    cat > /var/www/html/index.html <<'EOF'
+    cat > /var/www/html/index.html <<EOF
 <!DOCTYPE html>
 <html>
 <head><title>FahTech Ultimate Server</title>
@@ -91,24 +114,24 @@ h1{color:white;font-size:48px}
 <body>
 <h1>⚡ FAHTECH ULTIMATE SERVER ⚡</h1>
 <div class="status">✅ ALL SERVICES RUNNING</div>
-<p style="color:white;">Server IP: <?php echo $_SERVER['SERVER_ADDR']; ?></p>
+<p style="color:white;">Server IP: <?php echo \$_SERVER['SERVER_ADDR']; ?></p>
 <div class="services">
-<div class="service">🌐 Apache2</div><div class="service">📧 Mail Server</div>
+<div class="service">🌐 Apache2</div><div class="service">📧 Mail</div>
 <div class="service">📝 WordPress</div><div class="service">🗄️ CRUD</div>
 <div class="service">🌍 Webmail</div><div class="service">📁 FTP</div>
 <div class="service">🖥️ Samba</div><div class="service">📊 Zabbix</div>
 </div>
-<p style="color:white;">Powered by FahTech Ultimate Installer v23.0</p>
+<p style="color:white;">Powered by FahTech Ultimate Installer v24.0</p>
 </body>
 </html>
 EOF
     
     systemctl restart apache2
-    echo -e "\n${GREEN}✅ APACHE2 BERHASIL! Akses: http://$SERVER_IP${NC}"
+    echo -e "\n${GREEN}✅ APACHE2 BERHASIL! Akses: http://$APACHE_IP${NC}"
     read -p "Tekan Enter..."
 }
 
-# ======================= 2. DHCP SERVER =======================
+# ======================= 2. DHCP SERVER (PILIH INTERFACE) =======================
 install_dhcp() {
     clear
     echo -e "${BLUE}╔════════════════════════════════════════════════╗${NC}"
@@ -146,57 +169,37 @@ EOF
     read -p "Tekan Enter..."
 }
 
-# ======================= 3. DNS SERVER (3 DOMAIN) =======================
+# ======================= 3. DNS SERVER (4 DOMAIN) =======================
 install_dns() {
     clear
     echo -e "${BLUE}╔══════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║              🔍 INSTALL DNS SERVER (3 DOMAIN)                    ║${NC}"
+    echo -e "${BLUE}║              🔍 INSTALL DNS SERVER (4 DOMAIN)                    ║${NC}"
     echo -e "${BLUE}╚══════════════════════════════════════════════════════════════════╝${NC}"
     
-    # DNS 1
-    echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}  📍 DNS SERVER 1${NC}"
-    show_interfaces
-    echo -e "\n${YELLOW}👉 Pilih interface untuk DNS 1:${NC}"
-    read -p "Nomor: " choice1
-    if [[ $choice1 -ge 1 && $choice1 -le ${#INTERFACES[@]} ]]; then
-        IFS='|' read -r IFACE1 IP1 <<< "${INTERFACES[$((choice1-1))]}"
-        echo -e "\n${MAGENTA}📝 Masukkan domain untuk DNS 1:${NC}"
-        read -p "Domain: " DOMAIN1
-    else
-        echo -e "${RED}❌ Pilihan tidak valid!${NC}"
-        return
-    fi
+    declare -a DOMAINS=()
+    declare -a IPS=()
+    declare -a IFACES=()
     
-    # DNS 2
-    echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}  📍 DNS SERVER 2${NC}"
-    show_interfaces
-    echo -e "\n${YELLOW}👉 Pilih interface untuk DNS 2:${NC}"
-    read -p "Nomor: " choice2
-    if [[ $choice2 -ge 1 && $choice2 -le ${#INTERFACES[@]} ]]; then
-        IFS='|' read -r IFACE2 IP2 <<< "${INTERFACES[$((choice2-1))]}"
-        echo -e "\n${MAGENTA}📝 Masukkan domain untuk DNS 2:${NC}"
-        read -p "Domain: " DOMAIN2
-    else
-        echo -e "${RED}❌ Pilihan tidak valid!${NC}"
-        return
-    fi
+    for dns_num in 1 2 3 4; do
+        echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${BLUE}  📍 DNS SERVER $dns_num${NC}"
+        show_interfaces
+        echo -e "\n${YELLOW}👉 Pilih interface untuk DNS $dns_num:${NC}"
+        read -p "Nomor: " choice
+        if [[ $choice -ge 1 && $choice -le ${#INTERFACES[@]} ]]; then
+            IFS='|' read -r IFACE IP <<< "${INTERFACES[$((choice-1))]}"
+            echo -e "\n${MAGENTA}📝 Masukkan domain untuk DNS $dns_num:${NC}"
+            read -p "Domain: " DOMAIN
+            DOMAINS+=("$DOMAIN")
+            IPS+=("$IP")
+            IFACES+=("$IFACE")
+        else
+            echo -e "${RED}❌ Pilihan tidak valid!${NC}"
+            return
+        fi
+    done
     
-    # DNS 3
-    echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}  📍 DNS SERVER 3${NC}"
-    show_interfaces
-    echo -e "\n${YELLOW}👉 Pilih interface untuk DNS 3:${NC}"
-    read -p "Nomor: " choice3
-    if [[ $choice3 -ge 1 && $choice3 -le ${#INTERFACES[@]} ]]; then
-        IFS='|' read -r IFACE3 IP3 <<< "${INTERFACES[$((choice3-1))]}"
-        echo -e "\n${MAGENTA}📝 Masukkan domain untuk DNS 3:${NC}"
-        read -p "Domain: " DOMAIN3
-    else
-        echo -e "${RED}❌ Pilihan tidak valid!${NC}"
-        return
-    fi
+    fix_dns_resolver
     
     # Bersihkan DNS lama
     systemctl stop bind9 2>/dev/null
@@ -208,39 +211,32 @@ install_dns() {
     mkdir -p /etc/bind /var/lib/bind /var/cache/bind
     chown -R bind:bind /var/lib/bind /var/cache/bind
     
-    # Konfigurasi
+    # Konfigurasi named.conf.local
     cat > /etc/bind/named.conf.local <<EOF
-zone "$DOMAIN1" {
-    type master;
-    file "/etc/bind/db.$DOMAIN1";
-};
-zone "$DOMAIN2" {
-    type master;
-    file "/etc/bind/db.$DOMAIN2";
-};
-zone "$DOMAIN3" {
-    type master;
-    file "/etc/bind/db.$DOMAIN3";
-};
 EOF
     
-    for i in 1 2 3; do
-        DOMAIN_VAR="DOMAIN$i"
-        IP_VAR="IP$i"
-        cat > /etc/bind/db.${!DOMAIN_VAR} <<EOF
+    for i in "${!DOMAINS[@]}"; do
+        cat >> /etc/bind/named.conf.local <<EOF
+zone "${DOMAINS[$i]}" {
+    type master;
+    file "/etc/bind/db.${DOMAINS[$i]}";
+};
+EOF
+        
+        cat > /etc/bind/db.${DOMAINS[$i]} <<EOF
 \$TTL    604800
-@       IN      SOA     ns1.${!DOMAIN_VAR}. admin.${!DOMAIN_VAR}. (
+@       IN      SOA     ns1.${DOMAINS[$i]}. admin.${DOMAINS[$i]}. (
                   2026051601         ; Serial
                   604800         ; Refresh
                   86400         ; Retry
                   2419200        ; Expire
                   604800 )       ; Negative Cache TTL
 ;
-@       IN      NS      ns1.${!DOMAIN_VAR}.
-@       IN      A       ${!IP_VAR}
-ns1     IN      A       ${!IP_VAR}
-www     IN      A       ${!IP_VAR}
-mail    IN      A       ${!IP_VAR}
+@       IN      NS      ns1.${DOMAINS[$i]}.
+@       IN      A       ${IPS[$i]}
+ns1     IN      A       ${IPS[$i]}
+www     IN      A       ${IPS[$i]}
+mail    IN      A       ${IPS[$i]}
 EOF
     done
     
@@ -254,13 +250,14 @@ options {
 };
 EOF
     
+    systemctl unmask bind9 2>/dev/null
     systemctl start bind9
     systemctl enable bind9
     
-    echo -e "\n${GREEN}✅ 3 DNS SERVER BERHASIL!${NC}"
-    echo -e "   📝 $DOMAIN1 -> $IP1"
-    echo -e "   📝 $DOMAIN2 -> $IP2"
-    echo -e "   📝 $DOMAIN3 -> $IP3"
+    echo -e "\n${GREEN}✅ 4 DNS SERVER BERHASIL!${NC}"
+    for i in "${!DOMAINS[@]}"; do
+        echo -e "   📝 ${DOMAINS[$i]} -> ${IPS[$i]} (${IFACES[$i]})"
+    done
     read -p "Tekan Enter..."
 }
 
@@ -276,11 +273,10 @@ install_ftp() {
     systemctl enable vsftpd
     
     echo -e "\n${GREEN}✅ FTP BERHASIL! Akses: ftp://$SERVER_IP${NC}"
-    echo -e "${YELLOW}   📌 Login pakai user Linux${NC}"
     read -p "Tekan Enter..."
 }
 
-# ======================= 5. SAMBA =======================
+# ======================= 5. SAMBA (PILIH SHARE NAME) =======================
 install_samba() {
     clear
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
@@ -310,12 +306,21 @@ EOF
     read -p "Tekan Enter..."
 }
 
-# ======================= 6. MAIL SERVER =======================
+# ======================= 6. MAIL SERVER (PILIH DOMAIN & USER) =======================
 install_mail() {
     clear
     echo -e "${BLUE}╔════════════════════════════════════════════════╗${NC}"
     echo -e "${BLUE}║              📧 INSTALL MAIL SERVER            ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════╝${NC}"
+    
+    show_interfaces
+    echo -e "\n${YELLOW}👉 Pilih IP untuk Mail Server:${NC}"
+    read -p "Nomor [1-${#INTERFACES[@]}]: " choice
+    if [[ $choice -ge 1 && $choice -le ${#INTERFACES[@]} ]]; then
+        IFS='|' read -r MAIL_IFACE MAIL_IP <<< "${INTERFACES[$((choice-1))]}"
+    else
+        MAIL_IP=$SERVER_IP
+    fi
     
     echo -e "\n${CYAN}📝 Masukkan domain untuk email:${NC}"
     read -p "Domain (contoh: fahtech.com): " DOMAIN_UTAMA
@@ -329,7 +334,7 @@ install_mail() {
     
     MAIL_DOMAIN="mail.$DOMAIN_UTAMA"
     hostnamectl set-hostname $MAIL_DOMAIN
-    echo "$SERVER_IP $MAIL_DOMAIN" >> /etc/hosts
+    echo "$MAIL_IP $MAIL_DOMAIN" >> /etc/hosts
     
     apt install -y postfix dovecot-core dovecot-imapd dovecot-pop3d mailutils
     
@@ -366,7 +371,7 @@ EOF
     systemctl enable postfix dovecot
     
     echo "$DOMAIN_UTAMA" > /etc/maildomain.conf
-    echo "$SERVER_IP" > /etc/mailip.conf
+    echo "$MAIL_IP" > /etc/mailip.conf
     echo "$EMAIL_USER" > /etc/mailuser.conf
     echo "$EMAIL_PASS" > /etc/mailpass.conf
     
@@ -390,6 +395,7 @@ install_webmail() {
     fi
     
     DOMAIN_UTAMA=$(cat /etc/maildomain.conf)
+    MAIL_IP=$(cat /etc/mailip.conf)
     EMAIL_USER=$(cat /etc/mailuser.conf 2>/dev/null)
     EMAIL_PASS=$(cat /etc/mailpass.conf 2>/dev/null)
     
@@ -421,17 +427,26 @@ APACHE
     a2enmod rewrite
     systemctl restart apache2 postfix dovecot
     
-    echo -e "\n${GREEN}✅ WEBMAIL BERHASIL! Akses: http://$SERVER_IP/roundcube/${NC}"
+    echo -e "\n${GREEN}✅ WEBMAIL BERHASIL! Akses: http://$MAIL_IP/roundcube/${NC}"
     echo -e "   📧 Login: $EMAIL_USER@$DOMAIN_UTAMA / $EMAIL_PASS"
     read -p "Tekan Enter..."
 }
 
-# ======================= 8. WORDPRESS =======================
+# ======================= 8. WORDPRESS (PILIH IP) =======================
 install_wordpress() {
     clear
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║              📝 INSTALL WORDPRESS              ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════╝${NC}"
+    
+    show_interfaces
+    echo -e "\n${YELLOW}👉 Pilih IP untuk WordPress:${NC}"
+    read -p "Nomor [1-${#INTERFACES[@]}]: " choice
+    if [[ $choice -ge 1 && $choice -le ${#INTERFACES[@]} ]]; then
+        IFS='|' read -r WP_IFACE WP_IP <<< "${INTERFACES[$((choice-1))]}"
+    else
+        WP_IP=$SERVER_IP
+    fi
     
     apt install -y mariadb-server
     systemctl restart mariadb
@@ -458,17 +473,26 @@ MYSQL_SCRIPT
     chown -R www-data:www-data /var/www/html/
     systemctl restart apache2
     
-    echo -e "\n${GREEN}✅ WORDPRESS BERHASIL! Akses: http://$SERVER_IP/wp-admin/install.php${NC}"
+    echo -e "\n${GREEN}✅ WORDPRESS BERHASIL! Akses: http://$WP_IP/wp-admin/install.php${NC}"
     echo -e "${YELLOW}   🔑 DB Password: $DB_PASS${NC}"
     read -p "Tekan Enter..."
 }
 
-# ======================= 9. CRUD SISWA =======================
+# ======================= 9. CRUD SISWA (PILIH IP) =======================
 install_crud() {
     clear
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║         🗄️ INSTALL CRUD SISWA                 ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════╝${NC}"
+    
+    show_interfaces
+    echo -e "\n${YELLOW}👉 Pilih IP untuk CRUD Siswa:${NC}"
+    read -p "Nomor [1-${#INTERFACES[@]}]: " choice
+    if [[ $choice -ge 1 && $choice -le ${#INTERFACES[@]} ]]; then
+        IFS='|' read -r CRUD_IFACE CRUD_IP <<< "${INTERFACES[$((choice-1))]}"
+    else
+        CRUD_IP=$SERVER_IP
+    fi
     
     apt install -y php-sqlite3
     mkdir -p /var/www/html/crud
@@ -524,20 +548,29 @@ PHP
     chown -R www-data:www-data /var/www/html/crud
     systemctl restart apache2
     
-    echo -e "\n${GREEN}✅ CRUD SISWA BERHASIL! Akses: http://$SERVER_IP/crud/${NC}"
+    echo -e "\n${GREEN}✅ CRUD SISWA BERHASIL! Akses: http://$CRUD_IP/crud/${NC}"
     read -p "Tekan Enter..."
 }
 
-# ======================= 10. ZABBIX SERVER =======================
+# ======================= 10. ZABBIX SERVER (VERSI STABLE) =======================
 install_zabbix() {
     clear
     echo -e "${MAGENTA}╔════════════════════════════════════════════════╗${NC}"
     echo -e "${MAGENTA}║              📊 INSTALL ZABBIX SERVER          ║${NC}"
     echo -e "${MAGENTA}╚════════════════════════════════════════════════╝${NC}"
     
-    # Install Zabbix repository
-    wget -q https://repo.zabbix.com/zabbix/6.4/debian/pool/main/z/zabbix-release/zabbix-release_6.4-1+debian12_all.deb
-    dpkg -i zabbix-release_6.4-1+debian12_all.deb
+    show_interfaces
+    echo -e "\n${YELLOW}👉 Pilih IP untuk Zabbix:${NC}"
+    read -p "Nomor [1-${#INTERFACES[@]}]: " choice
+    if [[ $choice -ge 1 && $choice -le ${#INTERFACES[@]} ]]; then
+        IFS='|' read -r ZABBIX_IFACE ZABBIX_IP <<< "${INTERFACES[$((choice-1))]}"
+    else
+        ZABBIX_IP=$SERVER_IP
+    fi
+    
+    # Install Zabbix repository (versi 6.0 LTS yang lebih stabil)
+    wget -q https://repo.zabbix.com/zabbix/6.0/debian/pool/main/z/zabbix-release/zabbix-release_6.0-4+debian12_all.deb
+    dpkg -i zabbix-release_6.0-4+debian12_all.deb
     apt update -qq
     
     # Install Zabbix server and frontend
@@ -552,22 +585,26 @@ FLUSH PRIVILEGES;
 MYSQL
     
     # Import Zabbix database schema
-    zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql -u root zabbix 2>/dev/null
+    if [ -f /usr/share/zabbix-sql-scripts/mysql/server.sql.gz ]; then
+        zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql -u root zabbix 2>/dev/null
+    fi
     
     # Configure Zabbix server
     sed -i "s/# DBPassword=/DBPassword=zabbix123/" /etc/zabbix/zabbix_server.conf
     
     # Configure PHP timezone
-    sed -i "s/# php_value date.timezone Europe\/Riga/php_value date.timezone Asia\/Jakarta/" /etc/zabbix/apache.conf
+    if [ -f /etc/zabbix/apache.conf ]; then
+        sed -i "s/# php_value date.timezone Europe\/Riga/php_value date.timezone Asia\/Jakarta/" /etc/zabbix/apache.conf
+    fi
     
     # Start Zabbix services
-    systemctl restart zabbix-server zabbix-agent apache2
-    systemctl enable zabbix-server zabbix-agent
+    systemctl restart zabbix-server zabbix-agent apache2 2>/dev/null
+    systemctl enable zabbix-server zabbix-agent 2>/dev/null
     
-    rm -f zabbix-release_6.4-1+debian12_all.deb
+    rm -f zabbix-release_6.0-4+debian12_all.deb
     
     echo -e "\n${GREEN}✅ ZABBIX SERVER BERHASIL!${NC}"
-    echo -e "   🌐 Akses: http://$SERVER_IP/zabbix/"
+    echo -e "   🌐 Akses: http://$ZABBIX_IP/zabbix/"
     echo -e "   📝 Login default: ${YELLOW}Admin / zabbix${NC}"
     echo -e "   ⚠️  Password wajib diubah saat pertama login"
     read -p "Tekan Enter..."
@@ -584,6 +621,7 @@ install_all() {
     echo -e "\n${YELLOW}⚠️ Proses akan memakan waktu 30-45 menit. Lanjutkan? (y/n):${NC}"
     read confirm
     if [[ "$confirm" == "y" ]]; then
+        fix_dns_resolver
         install_apache2
         install_dhcp
         install_dns
@@ -674,20 +712,20 @@ while true; do
     clear
     echo -e "${CYAN}"
     echo "╔════════════════════════════════════════════════════════════════════════════╗"
-    echo "║            🚀 FAHTECH ULTIMATE FULL AUTO INSTALLER v23.0                   ║"
-    echo "║        DHCP + DNS + FTP + SAMBA + MAIL + APACHE2 + WP + CRUD + ZABBIX      ║"
+    echo "║            🚀 FAHTECH ULTIMATE FULL AUTO INSTALLER v24.0                   ║"
+    echo "║       4 DNS + DHCP + FTP + SAMBA + MAIL + APACHE2 + WP + CRUD + ZABBIX     ║"
     echo "╠════════════════════════════════════════════════════════════════════════════╣"
     echo "║                                                                             ║"
     echo "║  1.  ⚡ INSTALL SEMUA SERVICE (30-45 menit) - REKOMENDED                    ║"
-    echo "║  2.  🌍 Install Apache2 + Landing Page                                     ║"
-    echo "║  3.  🌐 Install DHCP Server                                                ║"
-    echo "║  4.  🔍 Install DNS Server (3 Domain)                                      ║"
+    echo "║  2.  🌍 Install Apache2 (Pilih IP)                                         ║"
+    echo "║  3.  🌐 Install DHCP Server (Pilih Interface)                              ║"
+    echo "║  4.  🔍 Install DNS Server (4 Domain - Pilih Interface & Domain)           ║"
     echo "║  5.  📁 Install FTP Server                                                 ║"
-    echo "║  6.  🖥️ Install Samba                                                      ║"
-    echo "║  7.  📧 Install Mail Server + Webmail                                      ║"
-    echo "║  8.  📝 Install WordPress                                                  ║"
-    echo "║  9.  🗄️ Install CRUD Siswa                                                 ║"
-    echo "║  10. 📊 Install Zabbix Server                                              ║"
+    echo "║  6.  🖥️ Install Samba (Pilih Nama Share)                                   ║"
+    echo "║  7.  📧 Install Mail Server + Webmail (Pilih IP, Domain, User)             ║"
+    echo "║  8.  📝 Install WordPress (Pilih IP)                                       ║"
+    echo "║  9.  🗄️ Install CRUD Siswa (Pilih IP)                                      ║"
+    echo "║  10. 📊 Install Zabbix Server (Pilih IP)                                   ║"
     echo "║  11. 📊 Cek Status Service                                                 ║"
     echo "║  12. 🗑️ Hapus SEMUA Service + Folder                                       ║"
     echo "║  13. 🚪 Exit                                                               ║"
