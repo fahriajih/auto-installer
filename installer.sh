@@ -2,7 +2,7 @@
 
 # ============================================================
 # FAHTECH AUTOMATION - FINAL FIXED VERSION
-# Dengan auto permission & virtual host fix
+# Dengan akses /crud (tanpa .php) dan permission fix
 # ============================================================
 
 clear_screen() {
@@ -71,13 +71,18 @@ fix_permission() {
     systemctl restart apache2
 }
 
-# 1. Apache2 + Landing Page (FIXED)
+# Enable mod_rewrite untuk akses tanpa .php
+enable_rewrite() {
+    a2enmod rewrite
+    systemctl restart apache2
+}
+
+# 1. Apache2 + Landing Page
 install_apache_landing() {
     echo "[INSTALL] Memulai instalasi Apache2 + Landing Page..."
     pilih_ip
     apt update && apt install -y apache2
     
-    # Bersihkan dulu
     rm -rf /var/www/html/*
     
     cat > /var/www/html/index.html << 'EOF'
@@ -166,13 +171,11 @@ install_apache_landing() {
 </html>
 EOF
 
-    # Fix permission
     fix_permission
     
     echo ""
     echo "[SUCCESS] Apache2 + Landing Page BERHASIL!"
     echo "[ACCESS] http://$SELECTED_IP"
-    echo "[INFO] Tampilan harus muncul sekarang!"
     echo ""
 }
 
@@ -250,23 +253,21 @@ EOF
     echo ""
 }
 
-# 4. Triple DNS Server (FIXED dengan tampilan pasti muncul)
+# 4. Triple DNS Server
 install_dns_triple() {
     echo "[INSTALL] Memulai instalasi 3 DNS Server..."
     pilih_ip
     
-    # Install packages
     apt update && apt install -y bind9 apache2
+    enable_rewrite
     
     declare -a DOMAINS
     
     for i in 1 2 3; do
         read -p "Masukkan domain ke-$i (contoh: domain$i.com): " DOM
         
-        # Buat folder dengan permission benar
         mkdir -p /var/www/$DOM
         
-        # Buat file HTML dengan tampilan beda-beda
         cat > /var/www/$DOM/index.html << EOF
 <!DOCTYPE html>
 <html lang="id">
@@ -327,7 +328,6 @@ EOF
         
         DOMAINS[$i]=$DOM
         
-        # Konfigurasi BIND
         cat >> /etc/bind/named.conf.local << EOF
 zone "$DOM" {
     type master;
@@ -350,7 +350,6 @@ www     IN      A       $SELECTED_IP
 *       IN      A       $SELECTED_IP
 EOF
 
-        # Konfigurasi Apache VirtualHost
         cat > /etc/apache2/sites-available/$DOM.conf << EOF
 <VirtualHost *:80>
     ServerName $DOM
@@ -366,21 +365,17 @@ EOF
 </VirtualHost>
 EOF
         
-        # Enable site
         a2ensite $DOM.conf 2>/dev/null
     done
     
-    # Restart semua service
     systemctl restart bind9
     systemctl reload apache2
     
-    # Fix permission
     for i in 1 2 3; do
         chown -R www-data:www-data /var/www/${DOMAINS[$i]}
         chmod -R 755 /var/www/${DOMAINS[$i]}
     done
     
-    # Tambahkan ke /etc/hosts
     for i in 1 2 3; do
         if ! grep -q "${DOMAINS[$i]}" /etc/hosts; then
             echo "$SELECTED_IP ${DOMAINS[$i]} www.${DOMAINS[$i]}" >> /etc/hosts
@@ -394,8 +389,6 @@ EOF
         echo "  DOMAIN $i: http://${DOMAINS[$i]}"
     done
     echo "============================================================"
-    echo "[INFO] Pastikan DNS client mengarah ke $SELECTED_IP"
-    echo "[INFO] Atau test dengan: curl -H 'Host: ${DOMAINS[1]}' http://$SELECTED_IP"
     echo ""
 }
 
@@ -466,12 +459,14 @@ EOF
     echo ""
 }
 
-# 7. CRUD Application
+# 7. CRUD Application (FIXED - bisa akses /crud tanpa .php)
 install_crud() {
     echo "[INSTALL] Memulai instalasi CRUD Application..."
     pilih_ip
     apt update
     apt install -y apache2 php php-mysql libapache2-mod-php
+    
+    enable_rewrite
     
     if command -v mysql &> /dev/null; then
         echo "MySQL sudah terinstall"
@@ -493,9 +488,12 @@ CREATE TABLE IF NOT EXISTS data_siswa (
 );
 INSERT IGNORE INTO data_siswa (nis, nama, rombel, rayon) VALUES 
 ('12345', 'Ahmad Fahtech', 'TJKT-1', 'Ciawi'),
-('12346', 'Budi Santoso', 'TJKT-2', 'Bogor');
+('12346', 'Budi Santoso', 'TJKT-2', 'Bogor'),
+('12347', 'Citra Dewi', 'TJKT-1', 'Sukasari'),
+('12348', 'Dani Ramdani', 'TJKT-3', 'Cibinong');
 EOF
     
+    # Buat file crud.php
     cat > /var/www/html/crud.php << 'EOF'
 <?php
 $conn = new mysqli('localhost', 'root', '', 'siswa_wikrama');
@@ -504,18 +502,18 @@ if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
 if(isset($_POST['add'])) {
     $conn->query("INSERT INTO data_siswa (nis, nama, rombel, rayon) VALUES 
         ('{$_POST['nis']}', '{$_POST['nama']}', '{$_POST['rombel']}', '{$_POST['rayon']}')");
-    echo "<script>alert('Data ditambahkan!'); window.location='crud.php';</script>";
+    echo "<script>alert('Data ditambahkan!'); window.location='crud';</script>";
 }
 
 if(isset($_POST['update'])) {
     $conn->query("UPDATE data_siswa SET nis='{$_POST['nis']}', nama='{$_POST['nama']}', 
         rombel='{$_POST['rombel']}', rayon='{$_POST['rayon']}' WHERE id={$_POST['id']}");
-    echo "<script>alert('Data diupdate!'); window.location='crud.php';</script>";
+    echo "<script>alert('Data diupdate!'); window.location='crud';</script>";
 }
 
 if(isset($_GET['delete'])) {
     $conn->query("DELETE FROM data_siswa WHERE id={$_GET['delete']}");
-    echo "<script>alert('Data dihapus!'); window.location='crud.php';</script>";
+    echo "<script>alert('Data dihapus!'); window.location='crud';</script>";
 }
 
 $edit = null;
@@ -528,38 +526,52 @@ if(isset($_GET['edit'])) {
 <html>
 <head>
     <title>CRUD Siswa - TJKT Wikrama</title>
+    <meta charset="UTF-8">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial; background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; }
-        h1, h2 { color: #667eea; }
-        input, select { width: 100%; padding: 10px; margin: 5px 0 15px 0; border: 1px solid #ddd; border-radius: 5px; }
-        button { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        body { font-family: 'Segoe UI', Arial; background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        h1 { color: #667eea; margin-bottom: 5px; }
+        h2 { color: #764ba2; margin-bottom: 20px; font-size: 1.1em; }
+        .form-group { display: inline-block; margin-right: 10px; margin-bottom: 15px; }
+        input, select { padding: 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; width: 200px; }
+        button { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 10px 25px; border: none; border-radius: 8px; cursor: pointer; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background: #667eea; color: white; }
-        .edit { color: green; text-decoration: none; margin-right: 10px; }
-        .delete { color: red; text-decoration: none; }
+        tr:hover { background: #f5f5f5; }
+        .edit-btn { background: #4CAF50; color: white; padding: 5px 10px; text-decoration: none; border-radius: 5px; margin-right: 5px; display: inline-block; }
+        .delete-btn { background: #f44336; color: white; padding: 5px 10px; text-decoration: none; border-radius: 5px; display: inline-block; }
+        .stats { background: #e7f3ff; padding: 15px; border-radius: 10px; margin: 20px 0; }
+        .success { background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>🚀 TJKT SMK WIKRAMA</h1>
-    <h2>Manajemen Data Siswa (CRUD)</h2>
+    <h2>📚 Manajemen Data Siswa (Create, Read, Update, Delete)</h2>
+    
+    <?php
+    $total = $conn->query("SELECT COUNT(*) as total FROM data_siswa")->fetch_assoc()['total'];
+    ?>
+    
+    <div class="stats">📊 Total Data Siswa: <strong><?php echo $total; ?></strong> orang</div>
+    
     <form method="POST">
-        <input type="hidden" name="id" value="<?= $edit['id'] ?? '' ?>">
-        <input type="text" name="nis" placeholder="NIS" value="<?= $edit['nis'] ?? '' ?>" required>
-        <input type="text" name="nama" placeholder="Nama Lengkap" value="<?= $edit['nama'] ?? '' ?>" required>
-        <input type="text" name="rombel" placeholder="Rombel" value="<?= $edit['rombel'] ?? '' ?>" required>
-        <input type="text" name="rayon" placeholder="Rayon" value="<?= $edit['rayon'] ?? '' ?>" required>
-        <?php if($edit): ?>
-            <button type="submit" name="update">Update Data</button>
-            <a href="crud.php">Batal</a>
+        <input type="hidden" name="id" value="<?php echo $edit['id'] ?? ''; ?>">
+        <div class="form-group"><input type="text" name="nis" placeholder="NIS" value="<?php echo $edit['nis'] ?? ''; ?>" required></div>
+        <div class="form-group"><input type="text" name="nama" placeholder="Nama Lengkap" value="<?php echo $edit['nama'] ?? ''; ?>" required></div>
+        <div class="form-group"><input type="text" name="rombel" placeholder="Rombel" value="<?php echo $edit['rombel'] ?? ''; ?>" required></div>
+        <div class="form-group"><input type="text" name="rayon" placeholder="Rayon" value="<?php echo $edit['rayon'] ?? ''; ?>" required></div>
+        <?php if($edit_data): ?>
+            <button type="submit" name="update">🔄 Update</button>
+            <a href="crud" style="margin-left:10px;">➕ Batal</a>
         <?php else: ?>
-            <button type="submit" name="add">Tambah Data</button>
+            <button type="submit" name="add">➕ Tambah Data</button>
         <?php endif; ?>
     </form>
-    <h3>Data Siswa:</h3>
+    
+    <h3>📋 Daftar Siswa:</h3>
     <table>
         <tr><th>ID</th><th>NIS</th><th>Nama</th><th>Rombel</th><th>Rayon</th><th>Aksi</th></tr>
         <?php
@@ -567,14 +579,14 @@ if(isset($_GET['edit'])) {
         while($row = $result->fetch_assoc()):
         ?>
         <tr>
-            <td><?= $row['id'] ?></td>
-            <td><?= $row['nis'] ?></td>
-            <td><?= $row['nama'] ?></td>
-            <td><?= $row['rombel'] ?></td>
-            <td><?= $row['rayon'] ?></td>
+            <td><?php echo $row['id']; ?></td>
+            <td><?php echo $row['nis']; ?></td>
+            <td><?php echo $row['nama']; ?></td>
+            <td><?php echo $row['rombel']; ?></td>
+            <td><?php echo $row['rayon']; ?></td>
             <td>
-                <a href="crud.php?edit=<?= $row['id'] ?>" class="edit">Edit</a>
-                <a href="crud.php?delete=<?= $row['id'] ?>" class="delete" onclick="return confirm('Yakin?')">Hapus</a>
+                <a href="crud?edit=<?php echo $row['id']; ?>" class="edit-btn">✏️ Edit</a>
+                <a href="crud?delete=<?php echo $row['id']; ?>" class="delete-btn" onclick="return confirm('Yakin hapus?')">🗑️ Hapus</a>
             </td>
         </tr>
         <?php endwhile; ?>
@@ -584,12 +596,29 @@ if(isset($_GET['edit'])) {
 </html>
 EOF
     
+    # Buat file .htaccess untuk rewrite rule
+    cat > /var/www/html/.htaccess << 'EOF'
+RewriteEngine On
+RewriteRule ^crud$ crud.php [L]
+EOF
+    
+    # Buat juga file index di folder crud (alternatif)
+    mkdir -p /var/www/html/crud
+    cat > /var/www/html/crud/index.php << 'EOF'
+<?php
+header('Location: ../crud.php');
+exit;
+?>
+EOF
+    
     chmod 755 /var/www/html/crud.php
+    chmod 755 /var/www/html/.htaccess
     fix_permission
     
     echo ""
     echo "[SUCCESS] CRUD Application BERHASIL!"
-    echo "[ACCESS] http://$SELECTED_IP/crud.php"
+    echo "[ACCESS] http://$SELECTED_IP/crud"
+    echo "[INFO] Bisa akses dengan atau tanpa .php"
     echo ""
 }
 
@@ -599,6 +628,8 @@ install_wordpress() {
     pilih_ip
     apt update
     apt install -y apache2 php php-mysql php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip libapache2-mod-php
+    
+    enable_rewrite
     
     if command -v mysql &> /dev/null; then
         echo "MySQL sudah terinstall"
@@ -781,7 +812,7 @@ while true; do
     echo "  4.  3 DNS Server (3 Domain Berbeda)"
     echo "  5.  FTP Server"
     echo "  6.  Samba Server (SMB Share)"
-    echo "  7.  CRUD Application (Data Siswa)"
+    echo "  7.  CRUD Application (Data Siswa) - Akses via /crud"
     echo "  8.  WordPress CMS"
     echo "  9.  Mail Server (Postfix + Dovecot)"
     echo "  10. Zabbix Server Monitoring"
