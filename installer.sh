@@ -138,7 +138,7 @@ install_3dns() {
     mkdir -p /etc/bind /var/lib/bind /var/cache/bind
     chown -R bind:bind /var/lib/bind /var/cache/bind
     
-    # Konfigurasi DNS untuk 3 domain
+    # ======================= KONFIGURASI DNS LENGKAP =======================
     cat > /etc/bind/named.conf.local <<EOF
 zone "$DOMAIN1" {
     type master;
@@ -156,7 +156,13 @@ EOF
     
     cat > /etc/bind/db.$DOMAIN1 <<EOF
 \$TTL    604800
-@       IN      SOA     ns1.$DOMAIN1. admin.$DOMAIN1. ( 1 604800 86400 2419200 604800 )
+@       IN      SOA     ns1.$DOMAIN1. admin.$DOMAIN1. (
+                  2026051601         ; Serial
+                  604800         ; Refresh
+                  86400         ; Retry
+                  2419200        ; Expire
+                  604800 )       ; Negative Cache TTL
+;
 @       IN      NS      ns1.$DOMAIN1.
 @       IN      A       $IP1
 ns1     IN      A       $IP1
@@ -165,7 +171,13 @@ EOF
     
     cat > /etc/bind/db.$DOMAIN2 <<EOF
 \$TTL    604800
-@       IN      SOA     ns1.$DOMAIN2. admin.$DOMAIN2. ( 2 604800 86400 2419200 604800 )
+@       IN      SOA     ns1.$DOMAIN2. admin.$DOMAIN2. (
+                  2026051602         ; Serial
+                  604800         ; Refresh
+                  86400         ; Retry
+                  2419200        ; Expire
+                  604800 )       ; Negative Cache TTL
+;
 @       IN      NS      ns1.$DOMAIN2.
 @       IN      A       $IP2
 ns1     IN      A       $IP2
@@ -174,7 +186,13 @@ EOF
     
     cat > /etc/bind/db.$DOMAIN3 <<EOF
 \$TTL    604800
-@       IN      SOA     ns1.$DOMAIN3. admin.$DOMAIN3. ( 3 604800 86400 2419200 604800 )
+@       IN      SOA     ns1.$DOMAIN3. admin.$DOMAIN3. (
+                  2026051603         ; Serial
+                  604800         ; Refresh
+                  86400         ; Retry
+                  2419200        ; Expire
+                  604800 )       ; Negative Cache TTL
+;
 @       IN      NS      ns1.$DOMAIN3.
 @       IN      A       $IP3
 ns1     IN      A       $IP3
@@ -186,7 +204,11 @@ options {
     directory "/var/cache/bind";
     recursion yes;
     allow-query { any; };
-    forwarders { 8.8.8.8; 8.8.4.4; };
+    forwarders {
+        8.8.8.8;
+        8.8.4.4;
+    };
+    dnssec-validation auto;
     listen-on { any; };
     listen-on-v6 { none; };
 };
@@ -195,7 +217,7 @@ EOF
     systemctl start bind9
     systemctl enable bind9
     
-    # ======================= TAMPILAN WEB DNS 1 =======================
+    # ======================= TAMPILAN WEB DNS 1 (Tutorial DHCP) =======================
     mkdir -p /var/www/html/$DOMAIN1
     cat > /var/www/html/$DOMAIN1/index.html <<EOF
 <!DOCTYPE html>
@@ -233,7 +255,7 @@ sudo systemctl enable isc-dhcp-server</pre>
 </html>
 EOF
     
-    # ======================= TAMPILAN WEB DNS 2 + CRUD =======================
+    # ======================= TAMPILAN WEB DNS 2 (Tutorial CRUD + CRUD App) =======================
     mkdir -p /var/www/html/crud
     mkdir -p /var/www/html/$DOMAIN2
     
@@ -315,7 +337,7 @@ pre{background:#1a1a2e;color:#0f0;padding:15px;border-radius:10px}
 </html>
 EOF
     
-    # ======================= TAMPILAN WEB DNS 3 =======================
+    # ======================= TAMPILAN WEB DNS 3 (Tutorial Apache2) =======================
     mkdir -p /var/www/html/$DOMAIN3
     cat > /var/www/html/$DOMAIN3/index.html <<EOF
 <!DOCTYPE html>
@@ -352,7 +374,7 @@ sudo systemctl reload apache2</pre>
 </html>
 EOF
     
-    # ======================= VIRTUAL HOST =======================
+    # ======================= VIRTUAL HOST APACHE =======================
     cat > /etc/apache2/sites-available/$DOMAIN1.conf <<EOF
 <VirtualHost *:80>
     ServerName $DOMAIN1
@@ -525,12 +547,12 @@ check_status() {
         echo -e "  🔍 Bind9    | ${RED}❌ INACTIVE${NC}"
     fi
     
-    if systemctl is-active --quiet mariadb; then
-        echo -e "  🗄️ MariaDB  | ${GREEN}✅ ACTIVE${NC}"
-    else
-        echo -e "  🗄️ MariaDB  | ${RED}❌ INACTIVE${NC}"
-    fi
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    
+    if [[ -f /etc/bind/named.conf.local ]]; then
+        echo -e "\n📋 DNS ZONES TERDAFTAR:"
+        grep -E "zone.*{" /etc/bind/named.conf.local 2>/dev/null | sed 's/zone/  📝/g' | sed 's/ {//g'
+    fi
     
     read -p "Tekan Enter..."
 }
@@ -580,11 +602,11 @@ while true; do
         2) install_crud ;;
         3) check_status ;;
         4) uninstall_all ;;
-        5) 
+        5)
             echo -e "${GREEN}👋 Terima kasih!${NC}"
             exit 0
             ;;
-        *) 
+        *)
             echo -e "${RED}❌ Pilihan salah!${NC}"
             sleep 1
             ;;
