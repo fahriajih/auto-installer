@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ============================================================
-# FAHTECH AUTOMATION - TJKT SMK WIKRAMA
-# FULLY FIXED VERSION
+# FAHTECH AUTOMATION - FINAL FIXED VERSION
+# Dengan auto permission & virtual host fix
 # ============================================================
 
 clear_screen() {
@@ -64,11 +64,21 @@ pilih_ip() {
     sleep 1
 }
 
-# 1. Apache2 + Landing Page
+# Fix permission function
+fix_permission() {
+    chown -R www-data:www-data /var/www/html/
+    chmod -R 755 /var/www/html/
+    systemctl restart apache2
+}
+
+# 1. Apache2 + Landing Page (FIXED)
 install_apache_landing() {
     echo "[INSTALL] Memulai instalasi Apache2 + Landing Page..."
     pilih_ip
     apt update && apt install -y apache2
+    
+    # Bersihkan dulu
+    rm -rf /var/www/html/*
     
     cat > /var/www/html/index.html << 'EOF'
 <!DOCTYPE html>
@@ -155,11 +165,14 @@ install_apache_landing() {
 </body>
 </html>
 EOF
+
+    # Fix permission
+    fix_permission
     
-    systemctl restart apache2
     echo ""
     echo "[SUCCESS] Apache2 + Landing Page BERHASIL!"
     echo "[ACCESS] http://$SELECTED_IP"
+    echo "[INFO] Tampilan harus muncul sekarang!"
     echo ""
 }
 
@@ -237,86 +250,152 @@ EOF
     echo ""
 }
 
-# 4. Triple DNS Server
+# 4. Triple DNS Server (FIXED dengan tampilan pasti muncul)
 install_dns_triple() {
     echo "[INSTALL] Memulai instalasi 3 DNS Server..."
     pilih_ip
+    
+    # Install packages
+    apt update && apt install -y bind9 apache2
     
     declare -a DOMAINS
     
     for i in 1 2 3; do
         read -p "Masukkan domain ke-$i (contoh: domain$i.com): " DOM
         
+        # Buat folder dengan permission benar
         mkdir -p /var/www/$DOM
         
+        # Buat file HTML dengan tampilan beda-beda
         cat > /var/www/$DOM/index.html << EOF
 <!DOCTYPE html>
-<html>
-<head><title>$DOM - Fahtech Service</title>
-<style>
-body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    padding: 50px;
-    background: linear-gradient(135deg, #${RANDOM:0:6}, #${RANDOM:0:6});
-    color: white;
-}
-</style>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>$DOM - TJKT Wikrama</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #${RANDOM:0:6}, #${RANDOM:0:6});
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            padding: 50px;
+            text-align: center;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: fadeIn 0.8s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        h1 { color: #667eea; margin-bottom: 20px; font-size: 2.5em; }
+        .domain { color: #764ba2; font-size: 1.3em; margin: 20px 0; font-weight: bold; }
+        .info { background: #f0f0f0; padding: 15px; border-radius: 10px; margin: 20px 0; }
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
-<h1>🚀 Selamat datang di $DOM</h1>
-<h2>Layanan DNS Ke-$i - TJKT SMK Wikrama</h2>
-<p>Ini adalah website khusus untuk domain $DOM</p>
-<p>Dikonfigurasi oleh Fahtech Automation</p>
+    <div class="card">
+        <h1>🚀 $DOM</h1>
+        <div class="domain">✨ Layanan DNS Server Ke-$i ✨</div>
+        <div class="info">
+            <p>🏫 TJKT SMK WIKRAMA</p>
+            <p>📡 Teknik Jaringan & Telekomunikasi</p>
+            <p>🔧 Dikonfigurasi oleh Fahtech Automation</p>
+            <p>🌐 Domain: $DOM</p>
+        </div>
+        <div class="badge">✅ DNS Resolving Aktif</div>
+    </div>
 </body>
 </html>
 EOF
         
         DOMAINS[$i]=$DOM
-    done
-    
-    apt update && apt install -y bind9 apache2
-    
-    for i in 1 2 3; do
+        
+        # Konfigurasi BIND
         cat >> /etc/bind/named.conf.local << EOF
-zone "${DOMAINS[$i]}" {
+zone "$DOM" {
     type master;
-    file "/etc/bind/db.${DOMAINS[$i]}";
+    file "/etc/bind/db.$DOM";
 };
 EOF
 
-        cat > /etc/bind/db.${DOMAINS[$i]} << EOF
+        cat > /etc/bind/db.$DOM << EOF
 \$TTL    604800
-@       IN      SOA     ns.${DOMAINS[$i]}. admin.${DOMAINS[$i]}. (
+@       IN      SOA     ns.$DOM. admin.$DOM. (
                   2025010101
                   604800
                   86400
                   2419200
                   604800 )
-@       IN      NS      ns.${DOMAINS[$i]}.
+@       IN      NS      ns.$DOM.
 @       IN      A       $SELECTED_IP
 ns      IN      A       $SELECTED_IP
 www     IN      A       $SELECTED_IP
+*       IN      A       $SELECTED_IP
 EOF
 
-        cat > /etc/apache2/sites-available/${DOMAINS[$i]}.conf << EOF
+        # Konfigurasi Apache VirtualHost
+        cat > /etc/apache2/sites-available/$DOM.conf << EOF
 <VirtualHost *:80>
-    ServerName ${DOMAINS[$i]}
-    ServerAlias www.${DOMAINS[$i]}
-    DocumentRoot /var/www/${DOMAINS[$i]}
+    ServerName $DOM
+    ServerAlias www.$DOM
+    DocumentRoot /var/www/$DOM
+    <Directory /var/www/$DOM>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+    ErrorLog \${APACHE_LOG_DIR}/${DOM}_error.log
+    CustomLog \${APACHE_LOG_DIR}/${DOM}_access.log combined
 </VirtualHost>
 EOF
-        a2ensite ${DOMAINS[$i]}.conf 2>/dev/null
+        
+        # Enable site
+        a2ensite $DOM.conf 2>/dev/null
     done
     
+    # Restart semua service
     systemctl restart bind9
     systemctl reload apache2
     
+    # Fix permission
+    for i in 1 2 3; do
+        chown -R www-data:www-data /var/www/${DOMAINS[$i]}
+        chmod -R 755 /var/www/${DOMAINS[$i]}
+    done
+    
+    # Tambahkan ke /etc/hosts
+    for i in 1 2 3; do
+        if ! grep -q "${DOMAINS[$i]}" /etc/hosts; then
+            echo "$SELECTED_IP ${DOMAINS[$i]} www.${DOMAINS[$i]}" >> /etc/hosts
+        fi
+    done
+    
     echo ""
     echo "[SUCCESS] 3 DNS Server BERHASIL!"
+    echo "============================================================"
     for i in 1 2 3; do
-        echo "[DOMAIN $i] http://${DOMAINS[$i]}"
+        echo "  DOMAIN $i: http://${DOMAINS[$i]}"
     done
+    echo "============================================================"
+    echo "[INFO] Pastikan DNS client mengarah ke $SELECTED_IP"
+    echo "[INFO] Atau test dengan: curl -H 'Host: ${DOMAINS[1]}' http://$SELECTED_IP"
     echo ""
 }
 
@@ -387,7 +466,7 @@ EOF
     echo ""
 }
 
-# 7. CRUD Application (Fixed for Debian)
+# 7. CRUD Application
 install_crud() {
     echo "[INSTALL] Memulai instalasi CRUD Application..."
     pilih_ip
@@ -506,7 +585,7 @@ if(isset($_GET['edit'])) {
 EOF
     
     chmod 755 /var/www/html/crud.php
-    systemctl restart apache2
+    fix_permission
     
     echo ""
     echo "[SUCCESS] CRUD Application BERHASIL!"
@@ -547,8 +626,7 @@ EOF
     sed -i "s/username_here/wpuser/" /var/www/html/wp-config.php
     sed -i "s/password_here/$DB_PASS/" /var/www/html/wp-config.php
     
-    chown -R www-data:www-data /var/www/html/
-    systemctl restart apache2
+    fix_permission
     
     echo ""
     echo "[SUCCESS] WordPress BERHASIL!"
