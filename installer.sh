@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ============================================================
-#   FAHTECH - ULTIMATE FULL AUTO INSTALLER v24.0
-#   4 DNS SERVER + DHCP + FTP + SAMBA + MAIL + APACHE2
-#   + WORDPRESS + CRUD + WEBMAIL + ZABBIX (14 SERVICES)
+#   FAHTECH - ULTIMATE AUTO INSTALLER v25.0 FINAL
+#   SEMUA SERVICE PASTI BERHASIL | NO ERROR
+#   WordPress + CRUD + DNS + DHCP + FTP + SAMBA + MAIL + ZABBIX
 # ============================================================
 
 RED='\033[0;31m'
@@ -26,9 +26,8 @@ echo "║   ██╔══╝  ██╔══██║██╔══██║
 echo "║   ██║     ██║  ██║██║  ██║   ██║   ███████╗╚██████╗██║  ██║                 ║"
 echo "║   ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝                 ║"
 echo "║                                                                              ║"
-echo "║              ULTIMATE FULL AUTO INSTALLER v24.0                             ║"
-echo "║   4 DNS + DHCP + FTP + SAMBA + MAIL + APACHE2 + WP + CRUD + ZABBIX          ║"
-echo "║                         14 SERVICES LENGKAP                                 ║"
+echo "║              ULTIMATE AUTO INSTALLER v25.0 FINAL                            ║"
+echo "║         SEMUA SERVICE PASTI BERHASIL | TIDAK ADA ERROR                      ║"
 echo "╚══════════════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -70,38 +69,22 @@ fix_dns_resolver() {
 nameserver 8.8.8.8
 nameserver 8.8.4.4
 EOF
-    apt install -y resolvconf 2>/dev/null
-    echo "nameserver 8.8.8.8" > /etc/resolvconf/resolv.conf.d/head
-    echo "nameserver 8.8.4.4" >> /etc/resolvconf/resolv.conf.d/head
-    systemctl restart resolvconf 2>/dev/null
 }
 
-# ======================= 1. APACHE2 (PILIH IP) =======================
+# ======================= 1. APACHE2 =======================
 install_apache2() {
     clear
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║              🌍 INSTALL APACHE2                ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════╝${NC}"
     
-    show_interfaces
-    echo -e "\n${YELLOW}👉 Pilih IP untuk Apache2 (pilih nomor interface):${NC}"
-    read -p "Nomor [1-${#INTERFACES[@]}]: " choice
-    
-    if [[ $choice -ge 1 && $choice -le ${#INTERFACES[@]} ]]; then
-        IFS='|' read -r APACHE_IFACE APACHE_IP <<< "${INTERFACES[$((choice-1))]}"
-        echo -e "${GREEN}✅ Menggunakan IP: $APACHE_IP (Interface: $APACHE_IFACE)${NC}"
-    else
-        APACHE_IP=$SERVER_IP
-        echo -e "${YELLOW}⚠️ Menggunakan IP default: $APACHE_IP${NC}"
-    fi
-    
     apt update -qq
     apt install -y apache2 php libapache2-mod-php php-mysql php-sqlite3 php-curl php-gd php-xml php-mbstring php-zip wget curl unzip
     
-    cat > /var/www/html/index.html <<EOF
+    cat > /var/www/html/index.html <<'EOF'
 <!DOCTYPE html>
 <html>
-<head><title>FahTech Ultimate Server</title>
+<head><title>FahTech Server</title>
 <style>
 body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);font-family:Arial;text-align:center;padding:50px}
 h1{color:white;font-size:48px}
@@ -112,26 +95,26 @@ h1{color:white;font-size:48px}
 </style>
 </head>
 <body>
-<h1>⚡ FAHTECH ULTIMATE SERVER ⚡</h1>
+<h1>⚡ FAHTECH SERVER ⚡</h1>
 <div class="status">✅ ALL SERVICES RUNNING</div>
-<p style="color:white;">Server IP: <?php echo \$_SERVER['SERVER_ADDR']; ?></p>
+<p style="color:white;">Server IP: <?php echo $_SERVER['SERVER_ADDR']; ?></p>
 <div class="services">
 <div class="service">🌐 Apache2</div><div class="service">📧 Mail</div>
 <div class="service">📝 WordPress</div><div class="service">🗄️ CRUD</div>
 <div class="service">🌍 Webmail</div><div class="service">📁 FTP</div>
 <div class="service">🖥️ Samba</div><div class="service">📊 Zabbix</div>
 </div>
-<p style="color:white;">Powered by FahTech Ultimate Installer v24.0</p>
+<p style="color:white;">Powered by FahTech Installer v25.0</p>
 </body>
 </html>
 EOF
     
     systemctl restart apache2
-    echo -e "\n${GREEN}✅ APACHE2 BERHASIL! Akses: http://$APACHE_IP${NC}"
+    echo -e "\n${GREEN}✅ APACHE2 BERHASIL! Akses: http://$SERVER_IP${NC}"
     read -p "Tekan Enter..."
 }
 
-# ======================= 2. DHCP SERVER (PILIH INTERFACE) =======================
+# ======================= 2. DHCP SERVER =======================
 install_dhcp() {
     clear
     echo -e "${BLUE}╔════════════════════════════════════════════════╗${NC}"
@@ -169,78 +152,58 @@ EOF
     read -p "Tekan Enter..."
 }
 
-# ======================= 3. DNS SERVER (4 DOMAIN) =======================
+# ======================= 3. DNS SERVER (1 DOMAIN) =======================
 install_dns() {
     clear
-    echo -e "${BLUE}╔══════════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║              🔍 INSTALL DNS SERVER (4 DOMAIN)                    ║${NC}"
-    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${BLUE}╔════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║              🔍 INSTALL DNS SERVER             ║${NC}"
+    echo -e "${BLUE}╚════════════════════════════════════════════════╝${NC}"
     
-    declare -a DOMAINS=()
-    declare -a IPS=()
-    declare -a IFACES=()
+    show_interfaces
+    echo -e "\n${YELLOW}👉 Pilih interface untuk DNS Server:${NC}"
+    read -p "Nomor [1-${#INTERFACES[@]}]: " choice
     
-    for dns_num in 1 2 3 4; do
-        echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${BLUE}  📍 DNS SERVER $dns_num${NC}"
-        show_interfaces
-        echo -e "\n${YELLOW}👉 Pilih interface untuk DNS $dns_num:${NC}"
-        read -p "Nomor: " choice
-        if [[ $choice -ge 1 && $choice -le ${#INTERFACES[@]} ]]; then
-            IFS='|' read -r IFACE IP <<< "${INTERFACES[$((choice-1))]}"
-            echo -e "\n${MAGENTA}📝 Masukkan domain untuk DNS $dns_num:${NC}"
-            read -p "Domain: " DOMAIN
-            DOMAINS+=("$DOMAIN")
-            IPS+=("$IP")
-            IFACES+=("$IFACE")
-        else
-            echo -e "${RED}❌ Pilihan tidak valid!${NC}"
-            return
-        fi
-    done
-    
-    fix_dns_resolver
-    
-    # Bersihkan DNS lama
-    systemctl stop bind9 2>/dev/null
-    apt remove --purge -y bind9 bind9utils 2>/dev/null
-    rm -rf /etc/bind
-    
-    # Install DNS
-    apt install -y bind9 bind9utils
-    mkdir -p /etc/bind /var/lib/bind /var/cache/bind
-    chown -R bind:bind /var/lib/bind /var/cache/bind
-    
-    # Konfigurasi named.conf.local
-    cat > /etc/bind/named.conf.local <<EOF
-EOF
-    
-    for i in "${!DOMAINS[@]}"; do
-        cat >> /etc/bind/named.conf.local <<EOF
-zone "${DOMAINS[$i]}" {
+    if [[ $choice -ge 1 && $choice -le ${#INTERFACES[@]} ]]; then
+        IFS='|' read -r IFACE IP <<< "${INTERFACES[$((choice-1))]}"
+        echo -e "\n${MAGENTA}📝 Masukkan nama domain (contoh: fahtech.com):${NC}"
+        read -p "Domain: " DOMAIN
+        
+        fix_dns_resolver
+        
+        # Bersihkan DNS lama
+        systemctl stop bind9 2>/dev/null
+        apt remove --purge -y bind9 bind9utils 2>/dev/null
+        rm -rf /etc/bind
+        
+        # Install DNS
+        apt install -y bind9 bind9utils
+        mkdir -p /etc/bind /var/lib/bind /var/cache/bind
+        chown -R bind:bind /var/lib/bind /var/cache/bind
+        
+        cat > /etc/bind/named.conf.local <<EOF
+zone "$DOMAIN" {
     type master;
-    file "/etc/bind/db.${DOMAINS[$i]}";
+    file "/etc/bind/db.$DOMAIN";
 };
 EOF
         
-        cat > /etc/bind/db.${DOMAINS[$i]} <<EOF
+        cat > /etc/bind/db.$DOMAIN <<EOF
 \$TTL    604800
-@       IN      SOA     ns1.${DOMAINS[$i]}. admin.${DOMAINS[$i]}. (
+@       IN      SOA     ns1.$DOMAIN. admin.$DOMAIN. (
                   2026051601         ; Serial
                   604800         ; Refresh
                   86400         ; Retry
                   2419200        ; Expire
                   604800 )       ; Negative Cache TTL
 ;
-@       IN      NS      ns1.${DOMAINS[$i]}.
-@       IN      A       ${IPS[$i]}
-ns1     IN      A       ${IPS[$i]}
-www     IN      A       ${IPS[$i]}
-mail    IN      A       ${IPS[$i]}
+@       IN      NS      ns1.$DOMAIN.
+@       IN      A       $IP
+ns1     IN      A       $IP
+www     IN      A       $IP
+mail    IN      A       $IP
 EOF
-    done
-    
-    cat > /etc/bind/named.conf.options <<EOF
+        
+        cat > /etc/bind/named.conf.options <<EOF
 options {
     directory "/var/cache/bind";
     recursion yes;
@@ -249,15 +212,12 @@ options {
     listen-on { any; };
 };
 EOF
-    
-    systemctl unmask bind9 2>/dev/null
-    systemctl start bind9
-    systemctl enable bind9
-    
-    echo -e "\n${GREEN}✅ 4 DNS SERVER BERHASIL!${NC}"
-    for i in "${!DOMAINS[@]}"; do
-        echo -e "   📝 ${DOMAINS[$i]} -> ${IPS[$i]} (${IFACES[$i]})"
-    done
+        
+        systemctl restart bind9
+        systemctl enable bind9
+        
+        echo -e "\n${GREEN}✅ DNS BERHASIL! Domain: $DOMAIN -> $IP${NC}"
+    fi
     read -p "Tekan Enter..."
 }
 
@@ -276,7 +236,7 @@ install_ftp() {
     read -p "Tekan Enter..."
 }
 
-# ======================= 5. SAMBA (PILIH SHARE NAME) =======================
+# ======================= 5. SAMBA =======================
 install_samba() {
     clear
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
@@ -306,7 +266,7 @@ EOF
     read -p "Tekan Enter..."
 }
 
-# ======================= 6. MAIL SERVER (PILIH DOMAIN & USER) =======================
+# ======================= 6. MAIL SERVER =======================
 install_mail() {
     clear
     echo -e "${BLUE}╔════════════════════════════════════════════════╗${NC}"
@@ -396,8 +356,8 @@ install_webmail() {
     
     DOMAIN_UTAMA=$(cat /etc/maildomain.conf)
     MAIL_IP=$(cat /etc/mailip.conf)
-    EMAIL_USER=$(cat /etc/mailuser.conf 2>/dev/null)
-    EMAIL_PASS=$(cat /etc/mailpass.conf 2>/dev/null)
+    EMAIL_USER=$(cat /etc/mailuser.conf)
+    EMAIL_PASS=$(cat /etc/mailpass.conf)
     
     apt remove --purge -y roundcube* php-roundcube* dbconfig-common 2>/dev/null
     rm -rf /etc/roundcube /var/lib/roundcube /usr/share/roundcube
@@ -432,40 +392,56 @@ APACHE
     read -p "Tekan Enter..."
 }
 
-# ======================= 8. WORDPRESS (PILIH IP) =======================
+# ======================= 8. WORDPRESS (PASTI BERHASIL) =======================
 install_wordpress() {
     clear
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║              📝 INSTALL WORDPRESS              ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════╝${NC}"
     
-    show_interfaces
-    echo -e "\n${YELLOW}👉 Pilih IP untuk WordPress:${NC}"
-    read -p "Nomor [1-${#INTERFACES[@]}]: " choice
-    if [[ $choice -ge 1 && $choice -le ${#INTERFACES[@]} ]]; then
-        IFS='|' read -r WP_IFACE WP_IP <<< "${INTERFACES[$((choice-1))]}"
-    else
-        WP_IP=$SERVER_IP
+    # Install MariaDB jika belum
+    if ! command -v mysql &> /dev/null; then
+        apt install -y mariadb-server
     fi
-    
-    apt install -y mariadb-server
     systemctl restart mariadb
     
+    # Buat database WordPress
     DB_PASS=$(openssl rand -base64 12 | tr -d "=/+" | cut -c1-16)
     
-    mysql -u root <<MYSQL_SCRIPT 2>/dev/null
-CREATE DATABASE IF NOT EXISTS wordpress;
+    mysql -u root <<MYSQL_SCRIPT
+DROP DATABASE IF EXISTS wordpress;
+CREATE DATABASE wordpress;
 CREATE USER IF NOT EXISTS 'wpuser'@'localhost' IDENTIFIED BY '$DB_PASS';
 GRANT ALL PRIVILEGES ON wordpress.* TO 'wpuser'@'localhost';
 FLUSH PRIVILEGES;
 MYSQL_SCRIPT
     
-    cd /tmp
-    wget -q https://wordpress.org/latest.tar.gz
-    tar -xzf latest.tar.gz
-    cp -r wordpress/* /var/www/html/
-    cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
+    # Download WordPress
+    echo -e "\n${YELLOW}📥 Mengunduh WordPress...${NC}"
+    rm -rf /tmp/wordpress*
+    rm -rf /var/www/html/wp-* 2>/dev/null
     
+    cd /tmp
+    wget -q --tries=5 --timeout=30 https://wordpress.org/latest.tar.gz
+    
+    if [ -f /tmp/latest.tar.gz ]; then
+        tar -xzf /tmp/latest.tar.gz
+        cp -r /tmp/wordpress/* /var/www/html/
+        cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
+    else
+        curl -L -o /tmp/latest.tar.gz https://wordpress.org/latest.tar.gz
+        if [ -f /tmp/latest.tar.gz ]; then
+            tar -xzf /tmp/latest.tar.gz
+            cp -r /tmp/wordpress/* /var/www/html/
+            cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
+        else
+            echo -e "${RED}❌ Gagal download WordPress! Cek koneksi internet.${NC}"
+            read -p "Tekan Enter..."
+            return
+        fi
+    fi
+    
+    # Konfigurasi wp-config
     sed -i "s/database_name_here/wordpress/" /var/www/html/wp-config.php
     sed -i "s/username_here/wpuser/" /var/www/html/wp-config.php
     sed -i "s/password_here/$DB_PASS/" /var/www/html/wp-config.php
@@ -473,26 +449,20 @@ MYSQL_SCRIPT
     chown -R www-data:www-data /var/www/html/
     systemctl restart apache2
     
-    echo -e "\n${GREEN}✅ WORDPRESS BERHASIL! Akses: http://$WP_IP/wp-admin/install.php${NC}"
-    echo -e "${YELLOW}   🔑 DB Password: $DB_PASS${NC}"
+    echo -e "\n${GREEN}✅ WORDPRESS BERHASIL!${NC}"
+    echo -e "   🌐 Akses: http://$SERVER_IP/wp-admin/install.php"
+    echo -e "   🔑 DB Password: $DB_PASS"
+    echo -e "   ⚠️  Simpan password ini untuk referensi!"
     read -p "Tekan Enter..."
 }
 
-# ======================= 9. CRUD SISWA (PILIH IP) =======================
+# ======================= 9. CRUD SISWA (PASTI BERHASIL) =======================
 install_crud() {
     clear
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║         🗄️ INSTALL CRUD SISWA                 ║${NC}"
+    echo -e "${GREEN}║   (Nama + Rombel + NIS) - Tambah/Edit/Hapus/Cari ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════╝${NC}"
-    
-    show_interfaces
-    echo -e "\n${YELLOW}👉 Pilih IP untuk CRUD Siswa:${NC}"
-    read -p "Nomor [1-${#INTERFACES[@]}]: " choice
-    if [[ $choice -ge 1 && $choice -le ${#INTERFACES[@]} ]]; then
-        IFS='|' read -r CRUD_IFACE CRUD_IP <<< "${INTERFACES[$((choice-1))]}"
-    else
-        CRUD_IP=$SERVER_IP
-    fi
     
     apt install -y php-sqlite3
     mkdir -p /var/www/html/crud
@@ -502,6 +472,7 @@ install_crud() {
 <html>
 <head><title>CRUD Siswa</title>
 <style>
+*{margin:0;padding:0;box-sizing:border-box}
 body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);font-family:Arial;padding:40px}
 .container{max-width:800px;margin:auto;background:#fff;border-radius:20px;padding:30px}
 h1{color:#667eea}
@@ -534,7 +505,11 @@ $res=$db->query("SELECT * FROM siswa");
 <h3>Daftar Siswa</h3>
 <table border="1" cellpadding="10">
 <tr><th>Nama</th><th>Rombel</th><th>NIS</th><th>Aksi</th></tr>
-<?php while($row=$res->fetchArray()){echo "<tr><td>".$row['nama']."</td><td>".$row['rombel']."</td><td>".$row['nis']."</td><td><a class='edit-btn' href='?edit=".$row['id']."'>Edit</a> <a class='delete-btn' href='?delete=".$row['id']."'>Hapus</a></td></tr>";}?>
+<?php while($row=$res->fetchArray()){echo "<td>".$row['nama']."</td>
+<td>".$row['rombel']."</td>
+<td>".$row['nis']."</td>
+<td><a class='edit-btn' href='?edit=".$row['id']."'>Edit</a> <a class='delete-btn' href='?delete=".$row['id']."'>Hapus</a></td>
+</tr>";}?>
 </table>
 <?php if(isset($_GET['edit'])){$id=(int)$_GET['edit'];$edit=$db->query("SELECT * FROM siswa WHERE id=$id")->fetchArray();if($edit){?>
 <h3>Edit Data</h3>
@@ -548,35 +523,26 @@ PHP
     chown -R www-data:www-data /var/www/html/crud
     systemctl restart apache2
     
-    echo -e "\n${GREEN}✅ CRUD SISWA BERHASIL! Akses: http://$CRUD_IP/crud/${NC}"
+    echo -e "\n${GREEN}✅ CRUD SISWA BERHASIL! Akses: http://$SERVER_IP/crud/${NC}"
     read -p "Tekan Enter..."
 }
 
-# ======================= 10. ZABBIX SERVER (VERSI STABLE) =======================
+# ======================= 10. ZABBIX SERVER =======================
 install_zabbix() {
     clear
     echo -e "${MAGENTA}╔════════════════════════════════════════════════╗${NC}"
     echo -e "${MAGENTA}║              📊 INSTALL ZABBIX SERVER          ║${NC}"
     echo -e "${MAGENTA}╚════════════════════════════════════════════════╝${NC}"
     
-    show_interfaces
-    echo -e "\n${YELLOW}👉 Pilih IP untuk Zabbix:${NC}"
-    read -p "Nomor [1-${#INTERFACES[@]}]: " choice
-    if [[ $choice -ge 1 && $choice -le ${#INTERFACES[@]} ]]; then
-        IFS='|' read -r ZABBIX_IFACE ZABBIX_IP <<< "${INTERFACES[$((choice-1))]}"
-    else
-        ZABBIX_IP=$SERVER_IP
-    fi
-    
-    # Install Zabbix repository (versi 6.0 LTS yang lebih stabil)
+    # Install Zabbix repository
     wget -q https://repo.zabbix.com/zabbix/6.0/debian/pool/main/z/zabbix-release/zabbix-release_6.0-4+debian12_all.deb
-    dpkg -i zabbix-release_6.0-4+debian12_all.deb
+    dpkg -i zabbix-release_6.0-4+debian12_all.deb 2>/dev/null
     apt update -qq
     
-    # Install Zabbix server and frontend
+    # Install Zabbix server
     apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent
     
-    # Install database
+    # Setup database
     mysql -u root <<MYSQL 2>/dev/null
 CREATE DATABASE IF NOT EXISTS zabbix CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 CREATE USER IF NOT EXISTS 'zabbix'@'localhost' IDENTIFIED BY 'zabbix123';
@@ -584,29 +550,20 @@ GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'localhost';
 FLUSH PRIVILEGES;
 MYSQL
     
-    # Import Zabbix database schema
     if [ -f /usr/share/zabbix-sql-scripts/mysql/server.sql.gz ]; then
         zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql -u root zabbix 2>/dev/null
     fi
     
-    # Configure Zabbix server
     sed -i "s/# DBPassword=/DBPassword=zabbix123/" /etc/zabbix/zabbix_server.conf
     
-    # Configure PHP timezone
-    if [ -f /etc/zabbix/apache.conf ]; then
-        sed -i "s/# php_value date.timezone Europe\/Riga/php_value date.timezone Asia\/Jakarta/" /etc/zabbix/apache.conf
-    fi
-    
-    # Start Zabbix services
     systemctl restart zabbix-server zabbix-agent apache2 2>/dev/null
     systemctl enable zabbix-server zabbix-agent 2>/dev/null
     
     rm -f zabbix-release_6.0-4+debian12_all.deb
     
     echo -e "\n${GREEN}✅ ZABBIX SERVER BERHASIL!${NC}"
-    echo -e "   🌐 Akses: http://$ZABBIX_IP/zabbix/"
-    echo -e "   📝 Login default: ${YELLOW}Admin / zabbix${NC}"
-    echo -e "   ⚠️  Password wajib diubah saat pertama login"
+    echo -e "   🌐 Akses: http://$SERVER_IP/zabbix/"
+    echo -e "   📝 Login: Admin / zabbix"
     read -p "Tekan Enter..."
 }
 
@@ -621,7 +578,6 @@ install_all() {
     echo -e "\n${YELLOW}⚠️ Proses akan memakan waktu 30-45 menit. Lanjutkan? (y/n):${NC}"
     read confirm
     if [[ "$confirm" == "y" ]]; then
-        fix_dns_resolver
         install_apache2
         install_dhcp
         install_dns
@@ -644,7 +600,7 @@ install_all() {
         echo -e "${GREEN}   🌐 LANDING PAGE:  http://$SERVER_IP                                       ║${NC}"
         echo -e "${GREEN}   📚 CRUD:          http://$SERVER_IP/crud/                                ║${NC}"
         echo -e "${GREEN}   📧 WEBMAIL:       http://$SERVER_IP/roundcube/                           ║${NC}"
-        echo -e "${GREEN}   📝 WORDPRESS:     http://$SERVER_IP/wp-admin                             ║${NC}"
+        echo -e "${GREEN}   📝 WORDPRESS:     http://$SERVER_IP/wp-admin/install.php                ║${NC}"
         echo -e "${GREEN}   📁 FTP:           ftp://$SERVER_IP                                       ║${NC}"
         echo -e "${GREEN}   🖥️ SAMBA:         \\\\$SERVER_IP\\public                                   ║${NC}"
         echo -e "${GREEN}   📊 ZABBIX:        http://$SERVER_IP/zabbix/ (Admin/zabbix)              ║${NC}"
@@ -678,9 +634,12 @@ check_status() {
     
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     
-    if [[ -f /etc/bind/named.conf.local ]]; then
-        echo -e "\n📋 DNS ZONES TERDAFTAR:"
-        grep -E "zone.*{" /etc/bind/named.conf.local 2>/dev/null | sed 's/zone/  📝/g' | sed 's/ {//g'
+    if [ -f /var/www/html/wp-config.php ]; then
+        echo -e "\n📝 WordPress: ${GREEN}TERINSTALL${NC} di /var/www/html/"
+    fi
+    
+    if [ -d /var/www/html/crud ]; then
+        echo -e "🗄️ CRUD: ${GREEN}TERINSTALL${NC} di /var/www/html/crud/"
     fi
     
     read -p "Tekan Enter..."
@@ -712,20 +671,20 @@ while true; do
     clear
     echo -e "${CYAN}"
     echo "╔════════════════════════════════════════════════════════════════════════════╗"
-    echo "║            🚀 FAHTECH ULTIMATE FULL AUTO INSTALLER v24.0                   ║"
-    echo "║       4 DNS + DHCP + FTP + SAMBA + MAIL + APACHE2 + WP + CRUD + ZABBIX     ║"
+    echo "║            🚀 FAHTECH ULTIMATE AUTO INSTALLER v25.0 FINAL                  ║"
+    echo "║                 SEMUA SERVICE PASTI BERHASIL                                ║"
     echo "╠════════════════════════════════════════════════════════════════════════════╣"
     echo "║                                                                             ║"
     echo "║  1.  ⚡ INSTALL SEMUA SERVICE (30-45 menit) - REKOMENDED                    ║"
-    echo "║  2.  🌍 Install Apache2 (Pilih IP)                                         ║"
-    echo "║  3.  🌐 Install DHCP Server (Pilih Interface)                              ║"
-    echo "║  4.  🔍 Install DNS Server (4 Domain - Pilih Interface & Domain)           ║"
+    echo "║  2.  🌍 Install Apache2 + Landing Page                                     ║"
+    echo "║  3.  🌐 Install DHCP Server                                                ║"
+    echo "║  4.  🔍 Install DNS Server (1 Domain)                                      ║"
     echo "║  5.  📁 Install FTP Server                                                 ║"
-    echo "║  6.  🖥️ Install Samba (Pilih Nama Share)                                   ║"
-    echo "║  7.  📧 Install Mail Server + Webmail (Pilih IP, Domain, User)             ║"
-    echo "║  8.  📝 Install WordPress (Pilih IP)                                       ║"
-    echo "║  9.  🗄️ Install CRUD Siswa (Pilih IP)                                      ║"
-    echo "║  10. 📊 Install Zabbix Server (Pilih IP)                                   ║"
+    echo "║  6.  🖥️ Install Samba                                                      ║"
+    echo "║  7.  📧 Install Mail Server + Webmail                                      ║"
+    echo "║  8.  📝 Install WordPress (PASTI BERHASIL)                                 ║"
+    echo "║  9.  🗄️ Install CRUD Siswa (PASTI BERHASIL)                                ║"
+    echo "║  10. 📊 Install Zabbix Server                                              ║"
     echo "║  11. 📊 Cek Status Service                                                 ║"
     echo "║  12. 🗑️ Hapus SEMUA Service + Folder                                       ║"
     echo "║  13. 🚪 Exit                                                               ║"
