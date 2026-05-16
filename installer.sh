@@ -50,23 +50,23 @@ pilih_ip() {
         echo -e "${RED}❌ ERROR: Tidak ada IP terdeteksi!${NC}"
         exit 1
     fi
-    
+
     echo -e "${PURPLE}╔════════════════════════════════════════╗${NC}"
     echo -e "${PURPLE}║      📡 DAFTAR IP YANG TERSEDIA       ║${NC}"
     echo -e "${PURPLE}╚════════════════════════════════════════╝${NC}"
-    
+
     for i in "${!IP_LIST[@]}"; do
         echo -e "${GREEN}  $((i+1)). ${WHITE}${IP_LIST[$i]}${NC}"
     done
-    
+
     echo ""
     read -p "$(echo -e ${YELLOW}"➤ Pilih nomor IP: "${NC})" IP_CHOICE
-    
+
     if [[ ! "$IP_CHOICE" =~ ^[0-9]+$ ]] || [ "$IP_CHOICE" -lt 1 ] || [ "$IP_CHOICE" -gt ${#IP_LIST[@]} ]; then
         echo -e "${RED}❌ Pilihan tidak valid!${NC}"
         exit 1
     fi
-    
+
     SELECTED_IP="${IP_LIST[$((IP_CHOICE-1))]}"
     echo -e "${GREEN}✅ IP terpilih: ${WHITE}$SELECTED_IP${NC}"
     sleep 1
@@ -79,7 +79,7 @@ install_apache_landing() {
     echo -e "${BLUE}🔧 Memulai instalasi Apache2 + Landing Page...${NC}"
     pilih_ip
     apt update && apt install -y apache2
-    
+
     cat > /var/www/html/index.html << 'EOF'
 <!DOCTYPE html>
 <html lang="id">
@@ -227,7 +227,7 @@ install_apache_landing() {
 </body>
 </html>
 EOF
-    
+
     systemctl restart apache2
     echo -e "${GREEN}✅ Apache2 + Landing Page SUKSES!${NC}"
     echo -e "${CYAN}🌐 Akses: ${WHITE}http://$SELECTED_IP${NC}"
@@ -239,11 +239,11 @@ install_dhcp() {
     echo -e "${BLUE}🔧 Memulai instalasi DHCP Server...${NC}"
     pilih_ip
     apt update && apt install -y isc-dhcp-server
-    
+
     # Dapatkan interface dari IP
     INTERFACE=$(ip -4 addr show | grep -B2 "$SELECTED_IP" | head -n1 | awk '{print $2}' | tr -d ':')
     NETWORK=$(echo $SELECTED_IP | cut -d. -f1-3).0
-    
+
     cat > /etc/default/isc-dhcp-server << EOF
 INTERFACESv4="$INTERFACE"
 INTERFACESv6=""
@@ -261,7 +261,7 @@ subnet $NETWORK netmask 255.255.255.0 {
     option domain-name-servers $SELECTED_IP;
 }
 EOF
-    
+
     systemctl restart isc-dhcp-server
     systemctl enable isc-dhcp-server
     echo -e "${GREEN}✅ DHCP Server SUKSES!${NC}"
@@ -274,9 +274,9 @@ install_dns_single() {
     echo -e "${BLUE}🔧 Memulai instalasi DNS Server (Single)...${NC}"
     pilih_ip
     read -p "$(echo -e ${YELLOW}"➤ Masukkan domain (contoh: tjkt.wikrama.sch.id): "${NC})" DOMAIN
-    
+
     apt update && apt install -y bind9
-    
+
     cat > /etc/bind/named.conf.local << EOF
 zone "$DOMAIN" {
     type master;
@@ -312,25 +312,27 @@ EOF
 install_dns_triple() {
     echo -e "${BLUE}🔧 Memulai instalasi 3 DNS Server...${NC}"
     pilih_ip
-    
+
     declare -a DOMAINS
     declare -a PORTS
-    
+
     for i in {1..3}; do
         read -p "$(echo -e ${YELLOW}"➤ Masukkan domain ke-$i (contoh: domain$i.com): "${NC})" DOM
-    
+
         # Buat folder untuk masing-masing domain
         mkdir -p /var/www/$DOM
         PORTS[$i]=$((8000 + $i))
-        
+
         # Buat web berbeda untuk tiap domain
+        RAND_HEX1=$(openssl rand -hex 3)
+        RAND_HEX2=$(openssl rand -hex 3)
         cat > /var/www/$DOM/index.html << EOF
 <!DOCTYPE html>
 <html>
 <head><title>$DOM - Fahtech Service</title>
 <style>
 body {
-    background: linear-gradient(135deg, #${RANDOM:0:6}, #${RANDOM:0:6});
+    background: linear-gradient(135deg, #${RAND_HEX1}, #${RAND_HEX2});
     font-family: Arial;
     text-align: center;
     padding: 50px;
@@ -346,12 +348,12 @@ body {
 </body>
 </html>
 EOF
-        
+
         DOMAINS[$i]=$DOM
     done
-    
+
     apt update && apt install -y bind9 apache2
-    
+
     # Konfigurasi BIND untuk multiple zones
     for i in {1..3}; do
         cat >> /etc/bind/named.conf.local << EOF
@@ -375,7 +377,7 @@ ns      IN      A       $SELECTED_IP
 www     IN      A       $SELECTED_IP
 EOF
     done
-    
+
     # Konfigurasi VirtualHost Apache untuk setiap domain
     for i in {1..3}; do
         cat > /etc/apache2/sites-available/${DOMAINS[$i]}.conf << EOF
@@ -389,10 +391,10 @@ EOF
 EOF
         a2ensite ${DOMAINS[$i]}.conf
     done
-    
+
     systemctl restart bind9
     systemctl reload apache2
-    
+
     echo -e "${GREEN}✅ 3 DNS Server SUKSES!${NC}"
     for i in {1..3}; do
         echo -e "${CYAN}🌐 Domain $i: ${WHITE}http://${DOMAINS[$i]}${NC}"
@@ -405,10 +407,10 @@ install_ftp() {
     echo -e "${BLUE}🔧 Memulai instalasi FTP Server...${NC}"
     pilih_ip
     apt update && apt install -y vsftpd
-    
+
     # Backup config
     cp /etc/vsftpd.conf /etc/vsftpd.conf.bak
-    
+
     cat > /etc/vsftpd.conf << EOF
 listen=YES
 listen_ipv6=NO
@@ -426,14 +428,14 @@ pasv_enable=YES
 pasv_min_port=10000
 pasv_max_port=10100
 EOF
-    
+
     systemctl restart vsftpd
     systemctl enable vsftpd
-    
+
     # Buat user demo
-    useradd -m -s /bin/bash ftpuser
+    useradd -m -s /bin/bash ftpuser 2>/dev/null || true
     echo "ftpuser:wikrama123" | chpasswd
-    
+
     echo -e "${GREEN}✅ FTP Server SUKSES!${NC}"
     echo -e "${CYAN}📁 Server: ${WHITE}ftp://$SELECTED_IP${NC}"
     echo -e "${YELLOW}📝 Cara penggunaan:${NC}"
@@ -447,10 +449,10 @@ install_samba() {
     echo -e "${BLUE}🔧 Memulai instalasi Samba Server...${NC}"
     pilih_ip
     apt update && apt install -y samba
-    
+
     mkdir -p /srv/samba/share
     chmod 777 /srv/samba/share
-    
+
     cat >> /etc/samba/smb.conf << EOF
 
 [wikrama-share]
@@ -462,10 +464,10 @@ install_samba() {
    directory mask = 0777
    force user = nobody
 EOF
-    
+
     systemctl restart smbd
     systemctl enable smbd
-    
+
     echo -e "${GREEN}✅ Samba Server SUKSES!${NC}"
     echo -e "${CYAN}📁 Share: ${WHITE}\\\\$SELECTED_IP\\wikrama-share${NC}"
     echo -e "${YELLOW}📝 Cara penggunaan: Di Windows, tekan Win+R, ketik \\\\$SELECTED_IP\\wikrama-share${NC}"
@@ -476,7 +478,7 @@ install_crud() {
     echo -e "${BLUE}🔧 Memulai instalasi CRUD Application...${NC}"
     pilih_ip
     apt update && apt install -y apache2 mysql-server php php-mysql libapache2-mod-php
-    
+
     # Setup database
     mysql << EOF
 CREATE DATABASE IF NOT EXISTS siswa_wikrama;
@@ -492,7 +494,7 @@ INSERT IGNORE INTO data_siswa (nis, nama, rombel, rayon) VALUES
 ('12345', 'Ahmad Fahtech', 'TJKT-1', 'Ciawi'),
 ('12346', 'Budi Santoso', 'TJKT-2', 'Bogor');
 EOF
-    
+
     # Buat CRUD PHP
     cat > /var/www/html/crud.php << 'EOF'
 <!DOCTYPE html>
@@ -569,11 +571,11 @@ EOF
 <div class="container">
     <h1>🚀 TJKT SMK WIKRAMA</h1>
     <h2>📚 Manajemen Data Siswa (CRUD)</h2>
-    
+
     <?php
     $conn = new mysqli('localhost', 'root', '', 'siswa_wikrama');
     if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
-    
+
     // Create
     if(isset($_POST['add'])) {
         $nis = $_POST['nis'];
@@ -584,7 +586,7 @@ EOF
         if($conn->query($sql)) echo "<div class='message success'>✅ Data berhasil ditambahkan!</div>";
         else echo "<div class='message error'>❌ Error: " . $conn->error . "</div>";
     }
-    
+
     // Update
     if(isset($_POST['update'])) {
         $id = $_POST['id'];
@@ -596,7 +598,7 @@ EOF
         if($conn->query($sql)) echo "<div class='message success'>✅ Data berhasil diupdate!</div>";
         else echo "<div class='message error'>❌ Error: " . $conn->error . "</div>";
     }
-    
+
     // Delete
     if(isset($_GET['delete'])) {
         $id = $_GET['delete'];
@@ -604,7 +606,7 @@ EOF
         if($conn->query($sql)) echo "<div class='message success'>✅ Data berhasil dihapus!</div>";
         else echo "<div class='message error'>❌ Error: " . $conn->error . "</div>";
     }
-    
+
     // Edit data fetch
     $edit_data = null;
     if(isset($_GET['edit'])) {
@@ -613,7 +615,7 @@ EOF
         $edit_data = $result->fetch_assoc();
     }
     ?>
-    
+
     <form method="POST">
         <input type="hidden" name="id" value="<?php echo $edit_data['id'] ?? ''; ?>">
         <div class="form-group">
@@ -639,7 +641,7 @@ EOF
             <button type="submit" name="add">➕ Tambah Data</button>
         <?php endif; ?>
     </form>
-    
+
     <h3>📋 Data Siswa:</h3>
     <table>
         <tr>
@@ -666,10 +668,10 @@ EOF
 </body>
 </html>
 EOF
-    
+
     chmod 755 /var/www/html/crud.php
     systemctl restart apache2
-    
+
     echo -e "${GREEN}✅ CRUD Application SUKSES!${NC}"
     echo -e "${CYAN}🌐 Akses: ${WHITE}http://$SELECTED_IP/crud.php${NC}"
     echo -e "${YELLOW}📝 Fitur: Tambah, Edit, Hapus data siswa (NIS, Nama, Rombel, Rayon)${NC}"
@@ -679,8 +681,8 @@ EOF
 install_wordpress() {
     echo -e "${BLUE}🔧 Memulai instalasi WordPress...${NC}"
     pilih_ip
-    apt update && apt install -y apache2 mysql-server php php-mysql php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip libapache2-mod-php
-    
+    apt update && apt install -y apache2 mysql-server php php-mysql php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip libapache2-mod-php wget
+
     # Setup database
     DB_PASS=$(openssl rand -base64 12)
     mysql << EOF
@@ -689,20 +691,20 @@ CREATE USER IF NOT EXISTS 'wpuser'@'localhost' IDENTIFIED BY '$DB_PASS';
 GRANT ALL PRIVILEGES ON wordpress.* TO 'wpuser'@'localhost';
 FLUSH PRIVILEGES;
 EOF
-    
+
     cd /tmp
     wget https://wordpress.org/latest.tar.gz
     tar -xzf latest.tar.gz
     cp -r wordpress/* /var/www/html/
     cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
-    
+
     sed -i "s/database_name_here/wordpress/" /var/www/html/wp-config.php
     sed -i "s/username_here/wpuser/" /var/www/html/wp-config.php
     sed -i "s/password_here/$DB_PASS/" /var/www/html/wp-config.php
-    
+
     chown -R www-data:www-data /var/www/html/
     systemctl restart apache2
-    
+
     echo -e "${GREEN}✅ WordPress SUKSES!${NC}"
     echo -e "${CYAN}🌐 Akses: ${WHITE}http://$SELECTED_IP/wp-admin/install.php${NC}"
     echo -e "${YELLOW}📝 Database: wordpress | User: wpuser | Pass: $DB_PASS${NC}"
@@ -714,10 +716,10 @@ install_mailserver() {
     echo -e "${BLUE}🔧 Memulai instalasi Mail Server...${NC}"
     pilih_ip
     read -p "$(echo -e ${YELLOW}"➤ Masukkan domain untuk email (contoh: mail.wikrama.sch.id): "${NC})" MAIL_DOMAIN
-    
+
     # Install DNS dulu
     apt update && apt install -y bind9
-    
+
     cat > /etc/bind/named.conf.local << EOF
 zone "$MAIL_DOMAIN" {
     type master;
@@ -741,61 +743,70 @@ mail    IN      A       $SELECTED_IP
 EOF
 
     systemctl restart bind9
-    
+
     # Install mail server
     debconf-set-selections <<< "postfix postfix/mailname string $MAIL_DOMAIN"
     debconf-set-selections <<< "postfix postfix/main_mailer_type string 'Internet Site'"
     apt install -y postfix dovecot-imapd dovecot-pop3d mailutils
-    
+
     # Konfigurasi Postfix
     postconf -e "myhostname = mail.$MAIL_DOMAIN"
     postconf -e "mydomain = $MAIL_DOMAIN"
     postconf -e "myorigin = \$mydomain"
     postconf -e "mydestination = \$myhostname, localhost.\$mydomain, localhost, \$mydomain"
-    
+
     # Konfigurasi Dovecot
     sed -i 's/#mail_location = mbox:~/mail/mail_location = mbox:~/mail/' /etc/dovecot/conf.d/10-mail.conf
-    
+
     # Buat user email
-    useradd -m -s /bin/bash admin
+    useradd -m -s /bin/bash admin 2>/dev/null || true
     echo "admin:wikramamail123" | chpasswd
-    
+
     systemctl restart postfix dovecot
-    
+
     echo -e "${GREEN}✅ Mail Server SUKSES!${NC}"
-    echo -e "${CYAN}📧 Webmail: ${WHITE}http://$SELECTED_IP/webmail${NC}"
     echo -e "${CYAN}📧 SMTP/IMAP: ${WHITE}$SELECTED_IP${NC}"
     echo -e "${YELLOW}📝 User: admin | Pass: wikramamail123${NC}"
-    echo -e "${YELLOW}📝 Cara kirim email: echo 'isi email' | mail -s 'Subject' user@$MAIL_DOMAIN${NC}"
+    echo -e "${YELLOW}📝 Cara kirim email: echo 'isi email' | mail -s 'Subject' admin@$MAIL_DOMAIN${NC}"
 }
 
-# 10. Zabbix Server
+# 10. Zabbix Server (Versi 7.0 untuk Ubuntu 24.04)
 install_zabbix() {
     echo -e "${BLUE}🔧 Memulai instalasi Zabbix Server...${NC}"
     pilih_ip
     apt update && apt install -y wget gnupg2 software-properties-common
+
+    # Cek versi Ubuntu
+    UBUNTU_VERSION=$(lsb_release -rs)
     
-    wget -O /tmp/zabbix-release.deb https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.0-1+ubuntu24.04_all.deb
+    if [[ "$UBUNTU_VERSION" == "24.04" ]]; then
+        wget -O /tmp/zabbix-release.deb https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.0-1+ubuntu24.04_all.deb
+    elif [[ "$UBUNTU_VERSION" == "22.04" ]]; then
+        wget -O /tmp/zabbix-release.deb https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.0-1+ubuntu22.04_all.deb
+    else
+        wget -O /tmp/zabbix-release.deb https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.0-1+ubuntu24.04_all.deb
+    fi
+    
     dpkg -i /tmp/zabbix-release.deb
     apt update
-    
+
     apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent mysql-server
-    
+
     # Setup database
     mysql << EOF
-CREATE DATABASE zabbix CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
-CREATE USER 'zabbix'@'localhost' IDENTIFIED BY 'zabbix123';
+CREATE DATABASE IF NOT EXISTS zabbix CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+CREATE USER IF NOT EXISTS 'zabbix'@'localhost' IDENTIFIED BY 'zabbix123';
 GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'localhost';
 FLUSH PRIVILEGES;
 EOF
-    
+
     zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql -uzabbix -pzabbix123 zabbix
-    
+
     # Konfigurasi Zabbix
     sed -i "s/# DBPassword=/DBPassword=zabbix123/" /etc/zabbix/zabbix_server.conf
     systemctl restart zabbix-server zabbix-agent apache2
     systemctl enable zabbix-server zabbix-agent
-    
+
     echo -e "${GREEN}✅ Zabbix Server SUKSES!${NC}"
     echo -e "${CYAN}🌐 Akses: ${WHITE}http://$SELECTED_IP/zabbix${NC}"
     echo -e "${YELLOW}📝 Login default: Admin / zabbix${NC}"
@@ -810,14 +821,14 @@ hapus_semua() {
         echo -e "${YELLOW}❌ Dibatalkan${NC}"
         return
     fi
-    
-    systemctl stop apache2 mysql postfix dovecot bind9 isc-dhcp-server vsftpd smbd zabbix-server 2>/dev/null
-    
-    apt remove --purge -y apache2 mysql-server php* postfix dovecot* bind9 isc-dhcp-server vsftpd samba zabbix-server-mysql zabbix-frontend-php wordpress 2>/dev/null
+
+    systemctl stop apache2 mysql postfix dovecot bind9 isc-dhcp-server vsftpd smbd zabbix-server 2>/dev/null || true
+
+    apt remove --purge -y apache2 mysql-server php* postfix dovecot* bind9 isc-dhcp-server vsftpd samba zabbix-server-mysql zabbix-frontend-php 2>/dev/null || true
     apt autoremove -y
-    
-    rm -rf /var/www/html/* /etc/bind/* /etc/dhcp/* /srv/samba/* /var/lib/mysql /etc/zabbix 2>/dev/null
-    
+
+    rm -rf /var/www/html/* /etc/bind/* /etc/dhcp/* /srv/samba/* /var/lib/mysql /etc/zabbix 2>/dev/null || true
+
     echo -e "${GREEN}✅ Semua service telah dihapus!${NC}"
 }
 
@@ -858,7 +869,7 @@ while true; do
     echo "╚══════════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
     read -p "$(echo -e ${CYAN}"➤ Pilih nomor [0-12]: "${NC})" MENU_CHOICE
-    
+
     case $MENU_CHOICE in
         1) install_apache_landing ;;
         2) install_dhcp ;;
@@ -875,7 +886,7 @@ while true; do
         0) echo -e "${GREEN}👋 Terima kasih - Fahtech Automation${NC}"; exit 0 ;;
         *) echo -e "${RED}❌ Pilihan salah!${NC}"; sleep 1 ;;
     esac
-    
+
     echo ""
     read -p "Tekan Enter untuk kembali ke menu..."
 done
