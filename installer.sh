@@ -1,28 +1,21 @@
 #!/bin/bash
 
 # ============================================================
-# FAHTECH AUTOMATION - TJKT SMK WIKRAMA
-# VERSION FINAL - ALL SERVICES WORKING
-# CRUD ACCESS: http://IP/crud/
+# FAHTECH AUTOMATION - ULTIMATE FIX
 # ============================================================
 
-clear_screen() {
-    printf "\033[2J\033[H"
-}
+clear_screen() { printf "\033[2J\033[H"; }
 
 banner() {
     clear_screen
     echo "================================================================================"
-    echo "                                                                                "
     echo "     ███████╗ █████╗ ██╗  ██╗████████╗███████╗ ██████╗██╗  ██╗                  "
     echo "     ██╔════╝██╔══██╗██║  ██║╚══██╔══╝██╔════╝██╔════╝██║  ██║                  "
     echo "     █████╗  ███████║███████║   ██║   █████╗  ██║     ███████║                  "
     echo "     ██╔══╝  ██╔══██║██╔══██║   ██║   ██╔══╝  ██║     ██╔══██║                  "
     echo "     ██║     ██║  ██║██║  ██║   ██║   ███████╗╚██████╗██║  ██║                  "
     echo "     ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝                  "
-    echo "                                                                                "
     echo "                   TJKT SMK WIKRAMA - AUTO CONFIGURATION                        "
-    echo "                              PILIH NOMOR LAYANAN                               "
     echo "================================================================================"
     echo ""
 }
@@ -33,143 +26,107 @@ get_ips() {
 
 pilih_ip() {
     local IP_LIST=()
-    while IFS= read -r line; do
-        IP_LIST+=("$line")
-    done < <(get_ips)
-
-    if [ ${#IP_LIST[@]} -eq 0 ]; then
-        echo "[ERROR] Tidak ada IP terdeteksi!"
-        exit 1
-    fi
-
+    while IFS= read -r line; do IP_LIST+=("$line"); done < <(get_ips)
+    
+    if [ ${#IP_LIST[@]} -eq 0 ]; then echo "[ERROR] Tidak ada IP!"; exit 1; fi
+    
     echo "============================================================"
     echo "            DAFTAR IP YANG TERSEDIA"
     echo "============================================================"
-
-    for i in "${!IP_LIST[@]}"; do
-        echo "  $((i+1)). ${IP_LIST[$i]}"
-    done
-
+    for i in "${!IP_LIST[@]}"; do echo "  $((i+1)). ${IP_LIST[$i]}"; done
     echo ""
     read -p "Pilih nomor IP: " IP_CHOICE
-
+    
     if [[ ! "$IP_CHOICE" =~ ^[0-9]+$ ]] || [ "$IP_CHOICE" -lt 1 ] || [ "$IP_CHOICE" -gt ${#IP_LIST[@]} ]; then
-        echo "[ERROR] Pilihan tidak valid!"
-        exit 1
+        echo "[ERROR] Pilihan tidak valid!"; exit 1
     fi
-
+    
     SELECTED_IP="${IP_LIST[$((IP_CHOICE-1))]}"
-    echo "[OK] IP terpilih: $SELECTED_IP"
-    echo ""
-    sleep 1
+    echo "[OK] IP terpilih: $SELECTED_IP"; sleep 1
 }
 
-fix_permission() {
-    chown -R www-data:www-data /var/www/html/
-    chmod -R 755 /var/www/html/
-    systemctl restart apache2 2>/dev/null
-}
-
-# ==================== 1. APACHE2 + LANDING PAGE ====================
+# 1. Apache2 + Landing Page (PASTI JALAN)
 install_apache_landing() {
-    echo "[INSTALL] Memulai instalasi Apache2 + Landing Page..."
+    echo "[INSTALL] Apache2 + Landing Page..."
     pilih_ip
-    apt update && apt install -y apache2
-
+    
+    apt update
+    apt install -y apache2 php libapache2-mod-php
+    
+    # Bersihkan dan buat file baru
     rm -rf /var/www/html/*
-
-    cat > /var/www/html/index.html << 'EOF'
+    
+    cat > /var/www/html/index.html << 'HTML'
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SMK Wikrama - TJKT</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
         }
-        .container {
-            background: rgba(255,255,255,0.95);
+        .card {
+            background: white;
             border-radius: 20px;
             padding: 50px;
             text-align: center;
-            max-width: 700px;
-            margin: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
         }
-        h1 {
-            font-size: 2.5em;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
-        }
-        h2 { color: #4a5568; margin-bottom: 20px; font-size: 1.2em; }
-        .features {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin: 30px 0;
-        }
-        .feature-card {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            padding: 15px;
-            border-radius: 10px;
-            color: white;
-        }
-        .btn {
-            display: inline-block;
-            padding: 12px 30px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            text-decoration: none;
-            border-radius: 25px;
-            margin-top: 20px;
-        }
-        footer { margin-top: 30px; color: #a0aec0; font-size: 0.9em; }
+        h1 { color: #667eea; font-size: 2.5em; }
+        .tagline { color: #764ba2; font-size: 1.2em; margin: 20px 0; }
+        .features { display: flex; gap: 15px; margin: 30px 0; flex-wrap: wrap; justify-content: center; }
+        .feature { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 10px 20px; border-radius: 10px; }
+        footer { margin-top: 30px; color: #999; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="card">
         <h1>🚀 SMK WIKRAMA</h1>
         <h2>TEKNIK JARINGAN & TELEKOMUNIKASI</h2>
+        <div class="tagline">🌟 Pusat Unggulan Teknologi Informasi dan Komunikasi 🌟</div>
         <div class="features">
-            <div class="feature-card">💻 Networking Expert</div>
-            <div class="feature-card">🔧 Server Administrator</div>
-            <div class="feature-card">🌐 Web Development</div>
-            <div class="feature-card">📡 Cybersecurity</div>
+            <div class="feature">💻 Networking</div>
+            <div class="feature">🔧 Administrator</div>
+            <div class="feature">🌐 Web Dev</div>
+            <div class="feature">📡 Security</div>
         </div>
-        <p>Selamat datang di layanan auto-configuration Fahtech!</p>
-        <a href="#" class="btn">Explore More →</a>
-        <footer>© 2025 TJKT SMK Wikrama | Powered by Fahtech Automation</footer>
+        <p>Auto Configuration by <strong>Fahtech</strong></p>
+        <footer>© TJKT SMK Wikrama</footer>
     </div>
 </body>
 </html>
-EOF
+HTML
 
-    fix_permission
+    # Fix permission
+    chmod -R 755 /var/www/html/
+    chown -R www-data:www-data /var/www/html/
+    systemctl restart apache2
+    
     echo ""
-    echo "[SUCCESS] Apache2 + Landing Page BERHASIL!"
-    echo "[ACCESS] http://$SELECTED_IP"
+    echo "=========================================="
+    echo "✅ SUCCESS!"
+    echo "🌐 http://$SELECTED_IP"
+    echo "=========================================="
     echo ""
 }
 
-# ==================== 2. DHCP SERVER ====================
+# 2. DHCP Server
 install_dhcp() {
-    echo "[INSTALL] Memulai instalasi DHCP Server..."
+    echo "[INSTALL] DHCP Server..."
     pilih_ip
     apt update && apt install -y isc-dhcp-server
-
+    
     INTERFACE=$(ip -4 addr show | grep -B2 "$SELECTED_IP" | head -n1 | awk '{print $2}' | tr -d ':')
     NETWORK=$(echo $SELECTED_IP | cut -d. -f1-3).0
-
+    
     cat > /etc/default/isc-dhcp-server << EOF
 INTERFACESv4="$INTERFACE"
 INTERFACESv6=""
@@ -184,27 +141,25 @@ subnet $NETWORK netmask 255.255.255.0 {
     range ${NETWORK%.0}.100 ${NETWORK%.0}.200;
     option routers $SELECTED_IP;
     option subnet-mask 255.255.255.0;
-    option domain-name-servers $SELECTED_IP;
 }
 EOF
-
+    
     systemctl restart isc-dhcp-server
     systemctl enable isc-dhcp-server
-
-    echo ""
-    echo "[SUCCESS] DHCP Server BERHASIL!"
-    echo "[RANGE] ${NETWORK%.0}.100 - ${NETWORK%.0}.200"
+    
+    echo "✅ DHCP Server BERHASIL!"
+    echo "📡 Range: ${NETWORK%.0}.100 - ${NETWORK%.0}.200"
     echo ""
 }
 
-# ==================== 3. DNS SINGLE ====================
+# 3. Single DNS
 install_dns_single() {
-    echo "[INSTALL] Memulai instalasi DNS Server (Single)..."
+    echo "[INSTALL] DNS Server..."
     pilih_ip
-    read -p "Masukkan domain (contoh: tjkt.wikrama.sch.id): " DOMAIN
-
+    read -p "Masukkan domain: " DOMAIN
+    
     apt update && apt install -y bind9
-
+    
     cat > /etc/bind/named.conf.local << EOF
 zone "$DOMAIN" {
     type master;
@@ -214,12 +169,7 @@ EOF
 
     cat > /etc/bind/db.$DOMAIN << EOF
 \$TTL    604800
-@       IN      SOA     ns.$DOMAIN. admin.$DOMAIN. (
-                  2025010101
-                  604800
-                  86400
-                  2419200
-                  604800 )
+@       IN      SOA     ns.$DOMAIN. admin.$DOMAIN. (2025010101 604800 86400 2419200 604800)
 @       IN      NS      ns.$DOMAIN.
 @       IN      A       $SELECTED_IP
 ns      IN      A       $SELECTED_IP
@@ -227,50 +177,60 @@ www     IN      A       $SELECTED_IP
 EOF
 
     systemctl restart bind9
-
-    echo ""
-    echo "[SUCCESS] DNS Server BERHASIL!"
-    echo "[DOMAIN] $DOMAIN"
-    echo "[TEST] nslookup $DOMAIN $SELECTED_IP"
+    
+    echo "✅ DNS Server BERHASIL!"
+    echo "🌐 Domain: $DOMAIN"
+    echo "🔍 nslookup $DOMAIN $SELECTED_IP"
     echo ""
 }
 
-# ==================== 4. 3 DNS SERVER ====================
+# 4. Triple DNS
 install_dns_triple() {
-    echo "[INSTALL] Memulai instalasi 3 DNS Server..."
+    echo "[INSTALL] 3 DNS Server..."
     pilih_ip
-
+    
     apt update && apt install -y bind9 apache2
-
-    declare -a DOMAINS
-
+    a2enmod rewrite
+    
     for i in 1 2 3; do
-        read -p "Masukkan domain ke-$i (contoh: domain$i.com): " DOM
-
+        read -p "Domain ke-$i: " DOM
+        
         mkdir -p /var/www/$DOM
-
+        
         cat > /var/www/$DOM/index.html << EOF
 <!DOCTYPE html>
 <html>
 <head><title>$DOM</title>
 <style>
-body{background:linear-gradient(135deg,#667eea,#764ba2);font-family:Arial;text-align:center;padding:50px;color:white}
-.card{background:rgba(0,0,0,0.3);border-radius:20px;padding:40px;max-width:600px;margin:auto}
-h1{font-size:48px}
+body {
+    margin: 0;
+    padding: 50px;
+    font-family: Arial;
+    background: linear-gradient(135deg, #${RANDOM:0:6}, #${RANDOM:0:6});
+    text-align: center;
+    color: white;
+}
+.card {
+    background: rgba(255,255,255,0.9);
+    color: #333;
+    padding: 40px;
+    border-radius: 20px;
+    max-width: 500px;
+    margin: auto;
+}
 </style>
 </head>
 <body>
 <div class="card">
-<h1>🚀 $DOM</h1>
-<p>DNS Server Ke-$i - TJKT SMK WIKRAMA</p>
-<p>Dikonfigurasi oleh Fahtech Automation</p>
+    <h1>🚀 $DOM</h1>
+    <h2>DNS Server Ke-$i</h2>
+    <p>TJKT SMK WIKRAMA</p>
+    <p>Powered by Fahtech Automation</p>
 </div>
 </body>
 </html>
 EOF
-
-        DOMAINS[$i]=$DOM
-
+        
         cat >> /etc/bind/named.conf.local << EOF
 zone "$DOM" {
     type master;
@@ -279,55 +239,49 @@ zone "$DOM" {
 EOF
 
         cat > /etc/bind/db.$DOM << EOF
-\$TTL    604800
-@       IN      SOA     ns.$DOM. admin.$DOM. (
-                  2025010101
-                  604800
-                  86400
-                  2419200
-                  604800 )
-@       IN      NS      ns.$DOM.
-@       IN      A       $SELECTED_IP
-ns      IN      A       $SELECTED_IP
-www     IN      A       $SELECTED_IP
+\$TTL 604800
+@ IN SOA ns.$DOM. admin.$DOM. (2025010101 604800 86400 2419200 604800)
+@ IN NS ns.$DOM.
+@ IN A $SELECTED_IP
+ns IN A $SELECTED_IP
+www IN A $SELECTED_IP
 EOF
 
         cat > /etc/apache2/sites-available/$DOM.conf << EOF
 <VirtualHost *:80>
     ServerName $DOM
+    ServerAlias www.$DOM
     DocumentRoot /var/www/$DOM
+    <Directory /var/www/$DOM>
+        AllowOverride All
+        Require all granted
+    </Directory>
 </VirtualHost>
 EOF
         a2ensite $DOM.conf
     done
-
+    
     systemctl restart bind9
     systemctl reload apache2
-    fix_permission
-
-    echo ""
-    echo "[SUCCESS] 3 DNS Server BERHASIL!"
-    for i in 1 2 3; do
-        echo "  🌐 http://${DOMAINS[$i]}"
-    done
+    chown -R www-data:www-data /var/www/
+    chmod -R 755 /var/www/
+    
+    echo "✅ 3 DNS Server BERHASIL!"
     echo ""
 }
 
-# ==================== 5. FTP SERVER ====================
+# 5. FTP
 install_ftp() {
-    echo "[INSTALL] Memulai instalasi FTP Server..."
+    echo "[INSTALL] FTP Server..."
     pilih_ip
     apt update && apt install -y vsftpd
-
+    
     cat > /etc/vsftpd.conf << EOF
 listen=YES
-listen_ipv6=NO
-anonymous_enable=NO
 local_enable=YES
 write_enable=YES
 local_umask=022
 dirmessage_enable=YES
-use_localtime=YES
 xferlog_enable=YES
 connect_from_port_20=YES
 chroot_local_user=YES
@@ -336,29 +290,28 @@ pasv_enable=YES
 pasv_min_port=10000
 pasv_max_port=10100
 EOF
-
-    useradd -m -s /bin/bash ftpuser 2>/dev/null
+    
+    useradd -m ftpuser 2>/dev/null
     echo "ftpuser:wikrama123" | chpasswd
-
+    
     systemctl restart vsftpd
     systemctl enable vsftpd
-
-    echo ""
-    echo "[SUCCESS] FTP Server BERHASIL!"
-    echo "[SERVER] ftp://$SELECTED_IP"
-    echo "[USER] ftpuser / PASS: wikrama123"
+    
+    echo "✅ FTP Server BERHASIL!"
+    echo "📁 ftp://$SELECTED_IP"
+    echo "👤 ftpuser / wikrama123"
     echo ""
 }
 
-# ==================== 6. SAMBA SERVER ====================
+# 6. Samba
 install_samba() {
-    echo "[INSTALL] Memulai instalasi Samba Server..."
+    echo "[INSTALL] Samba Server..."
     pilih_ip
     apt update && apt install -y samba
-
+    
     mkdir -p /srv/samba/share
     chmod 777 /srv/samba/share
-
+    
     cat >> /etc/samba/smb.conf << EOF
 
 [wikrama-share]
@@ -368,112 +321,159 @@ install_samba() {
    guest ok = yes
    create mask = 0777
    directory mask = 0777
-   force user = nobody
 EOF
-
+    
     systemctl restart smbd
     systemctl enable smbd
-
-    echo ""
-    echo "[SUCCESS] Samba Server BERHASIL!"
-    echo "[SHARE] \\\\$SELECTED_IP\\wikrama-share"
+    
+    echo "✅ Samba Server BERHASIL!"
+    echo "📁 \\\\$SELECTED_IP\\wikrama-share"
     echo ""
 }
 
-# ==================== 7. CRUD APPLICATION (FIXED - /crud/) ====================
+# 7. CRUD (PASTI JALAN)
 install_crud() {
-    echo "[INSTALL] Memulai instalasi CRUD Application..."
+    echo "[INSTALL] CRUD Application..."
     pilih_ip
     
     apt update
-    apt install -y apache2 php php-mysql libapache2-mod-php mariadb-server
-
+    apt install -y apache2 php php-mysql mariadb-server mariadb-client libapache2-mod-php
+    
+    # Start database
     systemctl start mariadb
     systemctl enable mariadb
-
-    mysql << EOF
+    
+    # Setup database
+    mysql << 'MYSQL'
 CREATE DATABASE IF NOT EXISTS siswa_wikrama;
 USE siswa_wikrama;
 CREATE TABLE IF NOT EXISTS data_siswa (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    nis VARCHAR(20) NOT NULL UNIQUE,
+    nis VARCHAR(20) NOT NULL,
     nama VARCHAR(100) NOT NULL,
     rombel VARCHAR(50) NOT NULL,
     rayon VARCHAR(50) NOT NULL
 );
-INSERT IGNORE INTO data_siswa (nis, nama, rombel, rayon) VALUES 
+INSERT INTO data_siswa (nis, nama, rombel, rayon) VALUES 
 ('12345', 'Ahmad Fahtech', 'TJKT-1', 'Ciawi'),
 ('12346', 'Budi Santoso', 'TJKT-2', 'Bogor');
-EOF
-
-    # Buat folder crud (bukan file crud.php)
-    mkdir -p /var/www/html/crud
-
-    cat > /var/www/html/crud/index.php << 'EOF'
-<?php
-$conn = new mysqli('localhost', 'root', '', 'siswa_wikrama');
-if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
-
-if(isset($_POST['add'])) {
-    $conn->query("INSERT INTO data_siswa (nis, nama, rombel, rayon) VALUES 
-        ('{$_POST['nis']}', '{$_POST['nama']}', '{$_POST['rombel']}', '{$_POST['rayon']}')");
-    echo "<script>alert('Data ditambahkan!'); window.location='index.php';</script>";
-}
-
-if(isset($_POST['update'])) {
-    $conn->query("UPDATE data_siswa SET nis='{$_POST['nis']}', nama='{$_POST['nama']}', 
-        rombel='{$_POST['rombel']}', rayon='{$_POST['rayon']}' WHERE id={$_POST['id']}");
-    echo "<script>alert('Data diupdate!'); window.location='index.php';</script>";
-}
-
-if(isset($_GET['delete'])) {
-    $conn->query("DELETE FROM data_siswa WHERE id={$_GET['delete']}");
-    echo "<script>alert('Data dihapus!'); window.location='index.php';</script>";
-}
-
-$edit = null;
-if(isset($_GET['edit'])) {
-    $result = $conn->query("SELECT * FROM data_siswa WHERE id={$_GET['edit']}");
-    $edit = $result->fetch_assoc();
-}
-?>
+MYSQL
+    
+    # Buat file CRUD sederhana
+    cat > /var/www/html/index.php << 'PHP'
 <!DOCTYPE html>
 <html>
 <head>
     <title>CRUD Siswa - TJKT Wikrama</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial; background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; }
-        h1, h2 { color: #667eea; }
-        input { width: 100%; padding: 10px; margin: 5px 0 15px 0; border: 1px solid #ddd; border-radius: 5px; }
-        button { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        body {
+            font-family: 'Segoe UI', Arial;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 { color: #667eea; margin-bottom: 10px; }
+        h2 { color: #764ba2; margin-bottom: 20px; }
+        .form-group {
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 15px;
+        }
+        input {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            width: 200px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
         th { background: #667eea; color: white; }
-        .edit { color: green; text-decoration: none; margin-right: 10px; }
-        .delete { color: red; text-decoration: none; }
+        .edit { background: #4CAF50; color: white; padding: 5px 10px; text-decoration: none; border-radius: 5px; }
+        .delete { background: #f44336; color: white; padding: 5px 10px; text-decoration: none; border-radius: 5px; }
+        .stats { background: #e7f3ff; padding: 15px; border-radius: 10px; margin: 20px 0; }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>🚀 TJKT SMK WIKRAMA</h1>
-    <h2>Manajemen Data Siswa (CRUD)</h2>
+    <h2>📚 Manajemen Data Siswa (CRUD)</h2>
+    
+    <?php
+    $conn = new mysqli('localhost', 'root', '', 'siswa_wikrama');
+    if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
+    
+    // Tambah data
+    if(isset($_POST['add'])) {
+        $conn->query("INSERT INTO data_siswa (nis, nama, rombel, rayon) VALUES 
+            ('{$_POST['nis']}', '{$_POST['nama']}', '{$_POST['rombel']}', '{$_POST['rayon']}')");
+        echo "<script>alert('Data ditambahkan!'); window.location='';</script>";
+    }
+    
+    // Update data
+    if(isset($_POST['update'])) {
+        $conn->query("UPDATE data_siswa SET nis='{$_POST['nis']}', nama='{$_POST['nama']}', 
+            rombel='{$_POST['rombel']}', rayon='{$_POST['rayon']}' WHERE id={$_POST['id']}");
+        echo "<script>alert('Data diupdate!'); window.location='';</script>";
+    }
+    
+    // Hapus data
+    if(isset($_GET['hapus'])) {
+        $conn->query("DELETE FROM data_siswa WHERE id={$_GET['hapus']}");
+        echo "<script>alert('Data dihapus!'); window.location='';</script>";
+    }
+    
+    // Ambil data untuk edit
+    $edit = null;
+    if(isset($_GET['edit'])) {
+        $result = $conn->query("SELECT * FROM data_siswa WHERE id={$_GET['edit']}");
+        $edit = $result->fetch_assoc();
+    }
+    
+    $total = $conn->query("SELECT COUNT(*) as total FROM data_siswa")->fetch_assoc()['total'];
+    ?>
+    
+    <div class="stats">📊 Total Siswa: <strong><?= $total ?></strong> orang</div>
+    
     <form method="POST">
         <input type="hidden" name="id" value="<?= $edit['id'] ?? '' ?>">
-        <input type="text" name="nis" placeholder="NIS" value="<?= $edit['nis'] ?? '' ?>" required>
-        <input type="text" name="nama" placeholder="Nama Lengkap" value="<?= $edit['nama'] ?? '' ?>" required>
-        <input type="text" name="rombel" placeholder="Rombel" value="<?= $edit['rombel'] ?? '' ?>" required>
-        <input type="text" name="rayon" placeholder="Rayon" value="<?= $edit['rayon'] ?? '' ?>" required>
+        <div class="form-group"><input type="text" name="nis" placeholder="NIS" value="<?= $edit['nis'] ?? '' ?>" required></div>
+        <div class="form-group"><input type="text" name="nama" placeholder="Nama" value="<?= $edit['nama'] ?? '' ?>" required></div>
+        <div class="form-group"><input type="text" name="rombel" placeholder="Rombel" value="<?= $edit['rombel'] ?? '' ?>" required></div>
+        <div class="form-group"><input type="text" name="rayon" placeholder="Rayon" value="<?= $edit['rayon'] ?? '' ?>" required></div>
         <?php if($edit): ?>
             <button type="submit" name="update">Update Data</button>
-            <a href="index.php">Batal</a>
+            <a href="" style="margin-left:10px;">Batal</a>
         <?php else: ?>
             <button type="submit" name="add">Tambah Data</button>
         <?php endif; ?>
     </form>
+    
     <h3>Data Siswa:</h3>
-    <table border="1">
+    <table>
         <tr><th>ID</th><th>NIS</th><th>Nama</th><th>Rombel</th><th>Rayon</th><th>Aksi</th></tr>
         <?php
         $result = $conn->query("SELECT * FROM data_siswa ORDER BY id DESC");
@@ -486,8 +486,8 @@ if(isset($_GET['edit'])) {
             <td><?= $row['rombel'] ?></td>
             <td><?= $row['rayon'] ?></td>
             <td>
-                <a href="index.php?edit=<?= $row['id'] ?>" class="edit">Edit</a>
-                <a href="index.php?delete=<?= $row['id'] ?>" class="delete" onclick="return confirm('Yakin?')">Hapus</a>
+                <a href="?edit=<?= $row['id'] ?>" class="edit">Edit</a>
+                <a href="?hapus=<?= $row['id'] ?>" class="delete" onclick="return confirm('Yakin?')">Hapus</a>
             </td>
         </tr>
         <?php endwhile; ?>
@@ -495,61 +495,71 @@ if(isset($_GET['edit'])) {
 </div>
 </body>
 </html>
-EOF
-
-    fix_permission
-
+PHP
+    
+    # Hapus index.html biar gak konflik
+    rm -f /var/www/html/index.html
+    
+    # Fix permission
+    chmod -R 755 /var/www/html/
+    chown -R www-data:www-data /var/www/html/
+    systemctl restart apache2
+    
     echo ""
-    echo "[SUCCESS] CRUD Application BERHASIL!"
-    echo "[ACCESS] http://$SELECTED_IP/crud/"
+    echo "=========================================="
+    echo "✅ CRUD BERHASIL!"
+    echo "🌐 http://$SELECTED_IP"
+    echo "=========================================="
     echo ""
 }
 
-# ==================== 8. WORDPRESS ====================
+# 8. WordPress
 install_wordpress() {
-    echo "[INSTALL] Memulai instalasi WordPress..."
+    echo "[INSTALL] WordPress..."
     pilih_ip
+    
     apt update
-    apt install -y apache2 php php-mysql php-curl php-gd php-mbstring php-xml php-zip libapache2-mod-php mariadb-server
-
+    apt install -y apache2 php php-mysql php-curl php-gd php-mbstring php-xml php-zip mariadb-server mariadb-client libapache2-mod-php
+    
     systemctl start mariadb
     systemctl enable mariadb
-
-    DB_PASS=$(openssl rand -base64 12)
+    
+    DB_PASS=$(openssl rand -base64 12 | tr -d '/' | cut -c1-15)
     mysql << EOF
 CREATE DATABASE IF NOT EXISTS wordpress;
 CREATE USER IF NOT EXISTS 'wpuser'@'localhost' IDENTIFIED BY '$DB_PASS';
 GRANT ALL PRIVILEGES ON wordpress.* TO 'wpuser'@'localhost';
 FLUSH PRIVILEGES;
 EOF
-
+    
     cd /tmp
     wget -q https://wordpress.org/latest.tar.gz
     tar -xzf latest.tar.gz
     cp -r wordpress/* /var/www/html/
     cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
-
+    
     sed -i "s/database_name_here/wordpress/" /var/www/html/wp-config.php
     sed -i "s/username_here/wpuser/" /var/www/html/wp-config.php
     sed -i "s/password_here/$DB_PASS/" /var/www/html/wp-config.php
-
-    fix_permission
-
-    echo ""
-    echo "[SUCCESS] WordPress BERHASIL!"
-    echo "[ACCESS] http://$SELECTED_IP/wp-admin/install.php"
-    echo "[DB PASS] $DB_PASS"
+    
+    chown -R www-data:www-data /var/www/html/
+    chmod -R 755 /var/www/html/
+    systemctl restart apache2
+    
+    echo "✅ WordPress BERHASIL!"
+    echo "🌐 http://$SELECTED_IP/wp-admin/install.php"
+    echo "🔑 DB Pass: $DB_PASS"
     echo ""
 }
 
-# ==================== 9. MAIL SERVER ====================
+# 9. Mail Server
 install_mailserver() {
-    echo "[INSTALL] Memulai instalasi Mail Server..."
+    echo "[INSTALL] Mail Server..."
     pilih_ip
-    read -p "Masukkan domain untuk email (contoh: mail.wikrama.sch.id): " MAIL_DOMAIN
-
+    read -p "Domain email: " MAIL_DOMAIN
+    
     apt update && apt install -y bind9 postfix dovecot-imapd dovecot-pop3d mailutils
-
+    
     cat > /etc/bind/named.conf.local << EOF
 zone "$MAIL_DOMAIN" {
     type master;
@@ -558,103 +568,85 @@ zone "$MAIL_DOMAIN" {
 EOF
 
     cat > /etc/bind/db.$MAIL_DOMAIN << EOF
-\$TTL    604800
-@       IN      SOA     ns.$MAIL_DOMAIN. admin.$MAIL_DOMAIN. (
-                  2025010101
-                  604800
-                  86400
-                  2419200
-                  604800 )
-@       IN      NS      ns.$MAIL_DOMAIN.
-@       IN      A       $SELECTED_IP
-ns      IN      A       $SELECTED_IP
-mail    IN      A       $SELECTED_IP
-@       IN      MX      10      mail.$MAIL_DOMAIN
+\$TTL 604800
+@ IN SOA ns.$MAIL_DOMAIN. admin.$MAIL_DOMAIN. (2025010101 604800 86400 2419200 604800)
+@ IN NS ns.$MAIL_DOMAIN.
+@ IN A $SELECTED_IP
+ns IN A $SELECTED_IP
+mail IN A $SELECTED_IP
+@ IN MX 10 mail.$MAIL_DOMAIN
 EOF
 
     systemctl restart bind9
-
+    
     debconf-set-selections <<< "postfix postfix/mailname string $MAIL_DOMAIN"
     debconf-set-selections <<< "postfix postfix/main_mailer_type string 'Internet Site'"
     apt install -y postfix
-
+    
     postconf -e "myhostname = mail.$MAIL_DOMAIN"
     postconf -e "mydomain = $MAIL_DOMAIN"
     postconf -e "myorigin = \$mydomain"
     postconf -e "mydestination = \$myhostname, localhost.\$mydomain, localhost, \$mydomain"
-
-    useradd -m -s /bin/bash admin 2>/dev/null
+    
+    useradd -m admin 2>/dev/null
     echo "admin:wikramamail123" | chpasswd
-
+    
     systemctl restart postfix dovecot
-
-    echo ""
-    echo "[SUCCESS] Mail Server BERHASIL!"
-    echo "[DOMAIN] $MAIL_DOMAIN"
-    echo "[USER] admin / PASS: wikramamail123"
+    
+    echo "✅ Mail Server BERHASIL!"
+    echo "📧 Domain: $MAIL_DOMAIN"
+    echo "👤 admin / wikramamail123"
     echo ""
 }
 
-# ==================== 10. ZABBIX SERVER ====================
+# 10. Zabbix
 install_zabbix() {
-    echo "[INSTALL] Memulai instalasi Zabbix Server..."
+    echo "[INSTALL] Zabbix Server..."
     pilih_ip
-    apt update && apt install -y wget gnupg2 mariadb-server
-
+    
+    apt update && apt install -y wget gnupg2 mariadb-server mariadb-client
+    
     wget -q https://repo.zabbix.com/zabbix/6.4/debian/pool/main/z/zabbix-release/zabbix-release_6.4-1+debian12_all.deb
     dpkg -i zabbix-release_6.4-1+debian12_all.deb
     apt update
-
+    
     apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-sql-scripts zabbix-agent
-
+    
     mysql << EOF
 CREATE DATABASE zabbix CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 CREATE USER 'zabbix'@'localhost' IDENTIFIED BY 'zabbix123';
 GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'localhost';
 FLUSH PRIVILEGES;
 EOF
-
+    
     zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql -uzabbix -pzabbix123 zabbix
-
+    
     sed -i "s/# DBPassword=/DBPassword=zabbix123/" /etc/zabbix/zabbix_server.conf
     systemctl restart zabbix-server zabbix-agent apache2
     systemctl enable zabbix-server zabbix-agent
-
-    echo ""
-    echo "[SUCCESS] Zabbix Server BERHASIL!"
-    echo "[ACCESS] http://$SELECTED_IP/zabbix"
-    echo "[LOGIN] Admin / zabbix"
+    
+    echo "✅ Zabbix BERHASIL!"
+    echo "🌐 http://$SELECTED_IP/zabbix"
+    echo "👤 Admin / zabbix"
     echo ""
 }
 
-# ==================== 11. HAPUS SEMUA SERVICE ====================
+# 11. Hapus Semua
 hapus_semua() {
-    echo "============================================================"
-    echo "  PERINGATAN: Ini akan menghapus SEMUA service!"
-    echo "============================================================"
-    read -p "Yakin? (ketik 'YA' untuk lanjut): " CONFIRM
-    if [ "$CONFIRM" != "YA" ]; then
-        echo "[BATAL]"
-        return
-    fi
-
+    echo "⚠️  HAPUS SEMUA SERVICE?"
+    read -p "Ketik 'YA' untuk lanjut: " CONFIRM
+    [[ "$CONFIRM" != "YA" ]] && echo "Batal" && return
+    
     systemctl stop apache2 mariadb postfix dovecot bind9 isc-dhcp-server vsftpd smbd zabbix-server 2>/dev/null
-
-    apt remove --purge -y apache2 mariadb-server php* postfix dovecot* bind9 isc-dhcp-server vsftpd samba zabbix-server-mysql zabbix-frontend-php 2>/dev/null
+    apt remove --purge -y apache2 mariadb-server php* postfix dovecot* bind9 isc-dhcp-server vsftpd samba zabbix-server-mysql 2>/dev/null
     apt autoremove -y
-
     rm -rf /var/www/html/* /etc/bind/* /etc/dhcp/* /srv/samba/* /var/lib/mysql /etc/zabbix 2>/dev/null
-
-    echo ""
-    echo "[SUCCESS] Semua service telah dihapus!"
-    echo ""
+    
+    echo "✅ Semua service dihapus!"
 }
 
-# ==================== 12. INSTALL SEMUA SERVICE ====================
+# 12. Install Semua
 install_semua() {
-    echo "============================================================"
-    echo "  MEMULAI INSTALL SEMUA SERVICE"
-    echo "============================================================"
     install_apache_landing
     install_dhcp
     install_dns_single
@@ -663,34 +655,23 @@ install_semua() {
     install_crud
     install_wordpress
     install_zabbix
-    echo "============================================================"
-    echo "[SUCCESS] SEMUA service berhasil diinstall!"
-    echo "============================================================"
+    echo "✅ SEMUA SERVICE SELESAI!"
 }
 
-# ==================== MAIN MENU ====================
+# ==================== MENU ====================
 while true; do
     banner
     echo "================================================================================"
-    echo "                            DAFTAR LAYANAN"
+    echo "  1. Apache2 + Landing Page    7. CRUD Application"
+    echo "  2. DHCP Server              8. WordPress CMS"
+    echo "  3. DNS Server (Single)      9. Mail Server"
+    echo "  4. 3 DNS Server             10. Zabbix Server"
+    echo "  5. FTP Server               11. Hapus Semua Service"
+    echo "  6. Samba Server             12. Install Semua Service"
+    echo "  0. Keluar"
     echo "================================================================================"
-    echo "  1.  Apache2 + Landing Page TJKT"
-    echo "  2.  DHCP Server (Range 100-200)"
-    echo "  3.  DNS Server (Single Domain)"
-    echo "  4.  3 DNS Server (3 Domain Berbeda)"
-    echo "  5.  FTP Server"
-    echo "  6.  Samba Server (SMB Share)"
-    echo "  7.  CRUD Application (Data Siswa) - Akses /crud/"
-    echo "  8.  WordPress CMS"
-    echo "  9.  Mail Server (Postfix + Dovecot)"
-    echo "  10. Zabbix Server Monitoring"
-    echo "  11. Hapus Semua Service"
-    echo "  12. Install Semua Service Sekaligus"
-    echo "  0.  Keluar"
-    echo "================================================================================"
-    echo ""
-    read -p "Pilih nomor [0-12]: " MENU_CHOICE
-
+    read -p "Pilih [0-12]: " MENU_CHOICE
+    
     case $MENU_CHOICE in
         1) install_apache_landing ;;
         2) install_dhcp ;;
@@ -704,20 +685,9 @@ while true; do
         10) install_zabbix ;;
         11) hapus_semua ;;
         12) install_semua ;;
-        0) 
-            echo ""
-            echo "Terima kasih - Fahtech Automation"
-            echo "TJKT SMK WIKRAMA"
-            exit 0 
-            ;;
-        *) 
-            echo "Pilihan salah!"
-            sleep 1
-            ;;
+        0) echo "Terima kasih!"; exit 0 ;;
+        *) echo "Pilihan salah!" ;;
     esac
-
-    if [ "$MENU_CHOICE" != "0" ]; then
-        echo ""
-        read -p "Tekan Enter untuk kembali ke menu..."
-    fi
+    
+    read -p "Tekan Enter..."
 done
