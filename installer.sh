@@ -1,25 +1,9 @@
 #!/bin/bash
 
 # ======================================================
-# FULL INSTALLER - FAHRITECH SMK WIKRAMA
-# ======================================================
-# VERSI: 3.0 (FULLY FUNCTIONAL)
-# FITUR LENGKAP:
-# 1. Setting IP (BEBAS)
-# 2. DHCP Server (Range 100-200)
-# 3. DNS Server (Bind9)
-# 4. Apache2 + PHP
-# 5. MySQL / MariaDB
-# 6. WordPress
-# 7. phpMyAdmin
-# 8. Website Utama (Tampilan Keren)
-# 9. CRUD Siswa (Tambah, Edit, Hapus, Cancel - FULL WORKING)
-# 10. SSH Server
-# 11. Samba File Sharing
-# 12. DVWA
+# FULL INSTALLER - FAHRITECH SMK WIKRAMA (UNIVERSAL)
 # ======================================================
 
-# Warna
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -57,29 +41,20 @@ validate_ip() {
     [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && return 0 || return 1
 }
 
-# =================== MENU 1: SET IP ===================
+# =================== MENU 1: SET IP (PAKAI IFCONFIG) ===================
 menu_set_ip() {
     echo -e "${BLUE}══════════════════ 1. SETTING IP ADDRESS ══════════════════${NC}"
     
-    interfaces=($(ip link show | grep -E '^[0-9]+: ens|eth' | awk -F': ' '{print $2}'))
+    # Tampilkan interface
+    echo -e "${GREEN}Interface yang tersedia:${NC}"
+    interfaces=($(ip link show | grep -E '^[0-9]+:' | grep -v lo | awk -F': ' '{print $2}' | cut -d'@' -f1))
     
-    if [ ${#interfaces[@]} -eq 0 ]; then
-        echo -e "${RED}Tidak ada interface!${NC}"
-        return 1
-    fi
-    
-    echo -e "${GREEN}Pilih interface:${NC}"
     for i in "${!interfaces[@]}"; do
         echo "  ${CYAN}$((i+1)))${NC} ${interfaces[$i]}"
     done
-    read -p "Pilihan [1-${#interfaces[@]}]: " pilih_interface
     
-    if [[ $pilih_interface -ge 1 && $pilih_interface -le ${#interfaces[@]} ]]; then
-        INTERFACE="${interfaces[$((pilih_interface-1))]}"
-    else
-        echo -e "${RED}Pilihan tidak valid!${NC}"
-        return 1
-    fi
+    read -p "Pilih interface [1-${#interfaces[@]}]: " pilih_interface
+    INTERFACE="${interfaces[$((pilih_interface-1))]}"
     
     echo -e "${YELLOW}Contoh IP: 192.168.1.10, 192.168.27.50, 10.10.10.5${NC}"
     while true; do
@@ -87,40 +62,47 @@ menu_set_ip() {
         validate_ip "$IP_ADDR" && break || echo -e "${RED}Format IP salah!${NC}"
     done
     
-    subnet=$(echo $IP_ADDR | cut -d'.' -f1-3)
-    GATEWAY="${subnet}.1"
+    read -p "Masukkan Netmask (default 255.255.255.0): " NETMASK
+    NETMASK=${NETMASK:-255.255.255.0}
     
-    cat > /etc/netplan/01-netcfg.yaml <<EOF
-network:
-  version: 2
-  renderer: networkd
-  ethernets:
-    $INTERFACE:
-      addresses:
-        - $IP_ADDR/24
-      routes:
-        - to: default
-          via: $GATEWAY
-      nameservers:
-        addresses: [8.8.8.8, 8.8.4.4]
+    read -p "Masukkan Gateway: " GATEWAY
+    
+    # Backup konfigurasi lama
+    cp /etc/network/interfaces /etc/network/interfaces.bak 2>/dev/null
+    
+    # Konfigurasi static IP (Debian/Ubuntu style)
+    cat > /etc/network/interfaces <<EOF
+# This file describes the network interfaces available on your system
+auto lo
+iface lo inet loopback
+
+auto $INTERFACE
+iface $INTERFACE inet static
+    address $IP_ADDR
+    netmask $NETMASK
+    gateway $GATEWAY
+    dns-nameservers 8.8.8.8 8.8.4.4
 EOF
+
+    # Restart network
+    systemctl restart networking 2>/dev/null || service networking restart 2>/dev/null || ifdown $INTERFACE && ifup $INTERFACE
     
-    netplan apply
     echo -e "${GREEN}✅ IP $IP_ADDR berhasil diset ke $INTERFACE${NC}"
+    echo -e "${GREEN}✅ Netmask: $NETMASK${NC}"
+    echo -e "${GREEN}✅ Gateway: $GATEWAY${NC}"
 }
 
 # =================== MENU 2: DHCP ===================
 menu_set_dhcp() {
     echo -e "${BLUE}══════════════════ 2. SETUP DHCP SERVER ══════════════════${NC}"
     
-    interfaces=($(ip link show | grep -E '^[0-9]+: ens|eth' | awk -F': ' '{print $2}'))
+    interfaces=($(ip link show | grep -E '^[0-9]+:' | grep -v lo | awk -F': ' '{print $2}' | cut -d'@' -f1))
     
     echo -e "${GREEN}Pilih interface untuk DHCP:${NC}"
     for i in "${!interfaces[@]}"; do
         echo "  ${CYAN}$((i+1)))${NC} ${interfaces[$i]}"
     done
     read -p "Pilihan [1-${#interfaces[@]}]: " pilih_dhcp
-    
     DHCP_INTERFACE="${interfaces[$((pilih_dhcp-1))]}"
     
     apt update -qq
@@ -148,7 +130,7 @@ menu_set_dns() {
     echo -e "${BLUE}══════════════════ 3. SETUP DNS SERVER ══════════════════${NC}"
     
     read -p "Masukkan nama domain (contoh: smkwikrama.local): " DOMAIN
-    read -p "Masukkan IP untuk domain: " DNS_IP
+    read -p "Masukkan IP untuk domain (contoh: $IP_ADDR): " DNS_IP
     
     apt install bind9 -y
     
@@ -177,9 +159,7 @@ zone "$DOMAIN" { type master; file "/etc/bind/db.$DOMAIN"; };
 zone "$reverse_ip.in-addr.arpa" { type master; file "/etc/bind/db.$reverse_ip"; };
 EOF
     
-    apt install resolvconf -y
-    echo "nameserver $DNS_IP" > /etc/resolvconf/resolv.conf.d/head
-    systemctl restart resolvconf
+    echo "nameserver $DNS_IP" > /etc/resolv.conf
     systemctl restart bind9
     
     echo -e "${GREEN}✅ DNS Server berhasil! Domain: $DOMAIN -> $DNS_IP${NC}"
@@ -237,6 +217,7 @@ menu_set_phpmyadmin() {
     echo "phpmyadmin phpmyadmin/app-password-confirm password rootpass123" | debconf-set-selections
     echo "phpmyadmin phpmyadmin/mysql/admin-pass password rootpass123" | debconf-set-selections
     apt install phpmyadmin -y
+    echo "Include /etc/phpmyadmin/apache.conf" >> /etc/apache2/apache2.conf
     systemctl restart apache2
     
     echo -e "${GREEN}✅ phpMyAdmin berhasil! Login: root / rootpass123${NC}"
@@ -277,7 +258,6 @@ menu_set_website() {
         .card:hover{transform:translateY(-5px);box-shadow:0 10px 20px rgba(0,0,0,0.2);}
         .card h3{margin:15px 0 10px;color:#333;}
         .footer{background:#1a1a2e;color:white;text-align:center;padding:20px;}
-        @media(max-width:768px){.hero h1{font-size:28px;}}
     </style>
 </head>
 <body>
@@ -305,7 +285,7 @@ menu_set_website() {
 </html>
 EOF_INDEX
 
-    # CRUD SISWA (FULL WORKING)
+    # CRUD SISWA
     cat > /var/www/html/crud_siswa.php << 'EOF_CRUD'
 <?php
 $conn = new mysqli("localhost", "root", "rootpass123", "sekolah");
@@ -346,7 +326,6 @@ if (isset($_GET['hapus'])) {
     $jenis = "success";
 }
 
-// Ambil data untuk edit
 $edit = null;
 if (isset($_GET['edit'])) {
     $id = $_GET['edit'];
@@ -378,7 +357,7 @@ $data = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
         tr:hover{background:#f5f5f5;}
         .btn-edit{background:#ffc107;color:#333;padding:5px 10px;border-radius:5px;text-decoration:none;font-size:12px;}
         .btn-hapus{background:#dc3545;color:white;padding:5px 10px;border-radius:5px;text-decoration:none;font-size:12px;}
-        .btn-batal{background:#6c757d;color:white;padding:5px 10px;border-radius:5px;text-decoration:none;font-size:12px;margin-left:10px;}
+        .btn-batal{background:#6c757d;color:white;padding:5px 10px;border-radius:5px;text-decoration:none;margin-left:10px;}
         .alert{padding:12px;border-radius:5px;margin-bottom:20px;text-align:center;}
         .alert-success{background:#d4edda;color:#155724;}
         .alert-error{background:#f8d7da;color:#721c24;}
@@ -472,8 +451,6 @@ EOF
     systemctl restart smbd
     
     echo -e "${GREEN}✅ SSH & Samba berhasil!${NC}"
-    echo -e "${GREEN}   SSH: ssh root@$IP_ADDR${NC}"
-    echo -e "${GREEN}   Samba: \\\\$IP_ADDR\\wikrama-share${NC}"
 }
 
 # =================== MENU 10: DVWA ===================
@@ -491,7 +468,7 @@ menu_set_dvwa() {
     chmod 777 /var/www/html/hackable/uploads/
     systemctl restart apache2
     
-    echo -e "${GREEN}✅ DVWA berhasil! Akses: http://$IP_ADDR/setup.php${NC}"
+    echo -e "${GREEN}✅ DVWA berhasil!${NC}"
 }
 
 # =================== MENU 11: TEST DNS ===================
