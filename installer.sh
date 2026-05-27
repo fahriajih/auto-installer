@@ -2,8 +2,6 @@
 
 # ======================================================
 # AUTOMATION SCRIPT MENU - Server Web SMK Wikrama
-# Fitur: Setting IP, DHCP, DNS, Apache2, WordPress,
-#         phpMyAdmin, CRUD, Samba, Clone GitHub, DVWA
 # ======================================================
 
 # Warna
@@ -16,7 +14,6 @@ NC='\033[0m'
 # Variabel global
 INTERFACE=""
 IP_ADDR=""
-NETMASK="255.255.255.0"
 GATEWAY=""
 DOMAIN=""
 DNS_IP=""
@@ -40,23 +37,40 @@ validate_ip_range() {
 }
 
 list_interfaces() {
-    echo -e "${GREEN}Interface yang tersedia:${NC}"
-    ip link show | grep -E '^[0-9]+: ens|eth' | awk -F': ' '{print "  - " $2}'
+    echo -e "${GREEN}Interface yang terdeteksi:${NC}"
+    interfaces=($(ip link show | grep -E '^[0-9]+: ens|eth' | awk -F': ' '{print $2}'))
+    for i in "${!interfaces[@]}"; do
+        echo "  $((i+1))) ${interfaces[$i]}"
+    done
+    echo "${#interfaces[@]}" # return jumlah interface
 }
 
 # =================== MENU 1: SETTING IP ===================
 menu_set_ip() {
     echo -e "${BLUE}==================== 1. SETTING IP ADDRESS ====================${NC}"
-    list_interfaces
-    read -p "Masukkan nama interface (contoh: ens33): " INTERFACE
     
-    if ! ip link show "$INTERFACE" > /dev/null 2>&1; then
-        echo -e "${RED}Interface tidak ditemukan!${NC}"
+    # Tampilkan interface yang tersedia
+    interfaces=($(ip link show | grep -E '^[0-9]+: ens|eth' | awk -F': ' '{print $2}'))
+    if [ ${#interfaces[@]} -eq 0 ]; then
+        echo -e "${RED}Tidak ada interface ens/eth yang terdeteksi!${NC}"
+        return 1
+    fi
+    
+    echo -e "${GREEN}Pilih interface yang mau dipakai:${NC}"
+    for i in "${!interfaces[@]}"; do
+        echo "  $((i+1))) ${interfaces[$i]}"
+    done
+    read -p "Masukkan pilihan [1-${#interfaces[@]}]: " pilih_interface
+    
+    if [[ $pilih_interface -ge 1 && $pilih_interface -le ${#interfaces[@]} ]]; then
+        INTERFACE="${interfaces[$((pilih_interface-1))]}"
+    else
+        echo -e "${RED}Pilihan tidak valid!${NC}"
         return 1
     fi
     
     echo -e "\n${YELLOW}CONTOH IP VALID: 192.168.1.150 (angka terakhir 100-200)${NC}"
-    echo "${YELLOW}CONTOH LAIN: 10.10.10.120, 172.16.1.150${NC}"
+    echo "${YELLOW}CONTOH: 192.168.27.150, 10.10.10.120${NC}"
     
     while true; do
         read -p "Masukkan IP address untuk $INTERFACE: " IP_ADDR
@@ -64,13 +78,17 @@ menu_set_ip() {
             break
         else
             echo -e "${RED}IP tidak valid! Oktett terakhir harus antara 100-200.${NC}"
-            echo "Contoh: 192.168.1.150 (150 di antara 100-200)"
         fi
     done
     
-    read -p "Masukkan Netmask [default: 255.255.255.0]: " input_netmask
-    NETMASK=${input_netmask:-255.255.255.0}
-    read -p "Masukkan Gateway (contoh: 192.168.1.1): " GATEWAY
+    # Otomatis ambil gateway dari IP (network .1)
+    subnet=$(echo $IP_ADDR | cut -d'.' -f1-3)
+    GATEWAY="${subnet}.1"
+    
+    echo -e "${YELLOW}Gateway otomatis: $GATEWAY${NC}"
+    
+    # Netmask langsung 255.255.255.0
+    NETMASK="255.255.255.0"
     
     cat > /etc/netplan/01-netcfg.yaml <<EOF
 network:
@@ -89,7 +107,7 @@ EOF
     
     netplan apply
     echo -e "${GREEN}✓ IP Address $IP_ADDR berhasil diset ke $INTERFACE${NC}"
-    echo -e "${GREEN}✓ Netmask: $NETMASK${NC}"
+    echo -e "${GREEN}✓ Netmask: 255.255.255.0${NC}"
     echo -e "${GREEN}✓ Gateway: $GATEWAY${NC}"
 }
 
@@ -97,31 +115,63 @@ EOF
 menu_set_dhcp() {
     echo -e "${BLUE}==================== 2. INSTALL & SETUP DHCP SERVER ====================${NC}"
     
-    if [ -z "$IP_ADDR" ]; then
-        echo -e "${RED}Anda harus setting IP dulu (Menu 1)!${NC}"
+    # Tampilkan interface yang tersedia untuk DHCP
+    interfaces=($(ip link show | grep -E '^[0-9]+: ens|eth' | awk -F': ' '{print $2}'))
+    
+    if [ ${#interfaces[@]} -eq 0 ]; then
+        echo -e "${RED}Tidak ada interface yang terdeteksi!${NC}"
         return 1
     fi
     
+    echo -e "${GREEN}Pilih interface untuk DHCP Server:${NC}"
+    for i in "${!interfaces[@]}"; do
+        # Cek apakah interface sudah punya IP
+        ip_check=$(ip addr show ${interfaces[$i]} | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+        if [ -n "$ip_check" ]; then
+            echo "  $((i+1))) ${interfaces[$i]} (IP: $ip_check)"
+        else
+            echo "  $((i+1))) ${interfaces[$i]} (belum ada IP)"
+        fi
+    done
+    
+    read -p "Masukkan pilihan [1-${#interfaces[@]}]: " pilih_dhcp
+    
+    if [[ $pilih_dhcp -ge 1 && $pilih_dhcp -le ${#interfaces[@]} ]]; then
+        DHCP_INTERFACE="${interfaces[$((pilih_dhcp-1))]}"
+    else
+        echo -e "${RED}Pilihan tidak valid!${NC}"
+        return 1
+    fi
+    
+    # Install DHCP
     apt update
     apt install isc-dhcp-server -y
     
-    subnet=$(echo $IP_ADDR | cut -d'.' -f1-3)
+    # Dapatkan subnet dari IP yang sudah diset (atau pakai IP dari menu 1)
+    if [ -z "$IP_ADDR" ]; then
+        # Ambil IP dari interface yang dipilih
+        IP_ADDR=$(ip addr show $DHCP_INTERFACE | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1)
+        subnet=$(echo $IP_ADDR | cut -d'.' -f1-3)
+        GATEWAY="${subnet}.1"
+    else
+        subnet=$(echo $IP_ADDR | cut -d'.' -f1-3)
+    fi
     
     cat > /etc/dhcp/dhcpd.conf <<EOF
-subnet ${subnet}.0 netmask $NETMASK {
+subnet ${subnet}.0 netmask 255.255.255.0 {
     range ${subnet}.100 ${subnet}.200;
     option routers $GATEWAY;
     option domain-name-servers $IP_ADDR, 8.8.8.8;
 }
 EOF
     
-    sed -i "s/INTERFACESv4=\".*\"/INTERFACESv4=\"$INTERFACE\"/" /etc/default/isc-dhcp-server
+    sed -i "s/INTERFACESv4=\".*\"/INTERFACESv4=\"$DHCP_INTERFACE\"/" /etc/default/isc-dhcp-server
     systemctl restart isc-dhcp-server
     systemctl enable isc-dhcp-server
     
     echo -e "${GREEN}✓ DHCP Server berhasil diinstall${NC}"
+    echo -e "${GREEN}✓ Interface: $DHCP_INTERFACE${NC}"
     echo -e "${GREEN}✓ Range IP: ${subnet}.100 - ${subnet}.200${NC}"
-    echo -e "${GREEN}✓ DHCP berjalan di interface $INTERFACE${NC}"
 }
 
 # =================== MENU 3: DNS SERVER ===================
@@ -192,8 +242,7 @@ EOF
     
     echo -e "${GREEN}✓ DNS Server berhasil diinstall${NC}"
     echo -e "${GREEN}✓ Domain: $DOMAIN -> $DNS_IP${NC}"
-    echo -e "${YELLOW}Test nslookup:${NC}"
-    nslookup $DOMAIN localhost 2>/dev/null || echo -e "${GREEN}DNS siap, coba: nslookup $DOMAIN $DNS_IP${NC}"
+    echo -e "${YELLOW}Test nslookup: nslookup $DOMAIN $DNS_IP${NC}"
 }
 
 # =================== MENU 4: APACHE2 + PHP ===================
@@ -219,7 +268,7 @@ menu_set_apache() {
 <body>
     <div class="info">
         <h1>📚 Selamat Datang di Web Tutorial SMK Wikrama</h1>
-        <p>Server berjalan di <strong>$domain_web</strong> ($DNS_IP)</p>
+        <p>Server berjalan di <strong>$domain_web</strong></p>
         <p>Akses melalui: <a href="http://$domain_web">http://$domain_web</a></p>
         <hr>
         <h3>✅ Fitur yang tersedia:</h3>
@@ -239,7 +288,6 @@ menu_set_wordpress() {
     
     apt install mariadb-server -y
     
-    # Setup MySQL
     mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'rootpass123';" 2>/dev/null
     mysql -u root -prootpass123 -e "CREATE DATABASE IF NOT EXISTS wordpress;" 2>/dev/null
     mysql -u root -prootpass123 -e "CREATE USER IF NOT EXISTS 'wpuser'@'localhost' IDENTIFIED BY 'wppass123';" 2>/dev/null
@@ -261,7 +309,6 @@ menu_set_wordpress() {
     domain_web=${DOMAIN:-$IP_ADDR}
     echo -e "${GREEN}✓ WordPress berhasil diinstall${NC}"
     echo -e "${GREEN}✓ Akses: http://${domain_web}/wp-admin${NC}"
-    echo -e "${YELLOW}  Username: (isi sendiri di halaman install)${NC}"
 }
 
 # =================== MENU 6: phpMyAdmin ===================
@@ -283,7 +330,7 @@ menu_set_phpmyadmin() {
     echo -e "${YELLOW}  Login: root / rootpass123${NC}"
 }
 
-# =================== MENU 7: CRUD SEDERHANA ===================
+# =================== MENU 7: CRUD ===================
 menu_set_crud() {
     echo -e "${BLUE}==================== 7. MEMBUAT CRUD SEDERHANA ====================${NC}"
     
@@ -294,7 +341,7 @@ menu_set_crud() {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CRUD Sederhana - SMK Wikrama</title>
+    <title>CRUD - SMK Wikrama</title>
     <style>
         body { font-family: Arial; padding: 20px; }
         table { border-collapse: collapse; width: 100%; }
@@ -303,55 +350,39 @@ menu_set_crud() {
         .add-form { margin-bottom: 20px; padding: 15px; background: #f0f0f0; border-radius: 5px; }
         input { padding: 5px; margin: 5px; }
         button { padding: 5px 10px; background: #2c3e50; color: white; border: none; cursor: pointer; }
-        h1 { color: #2c3e50; }
     </style>
 </head>
 <body>
-    <h1>📋 CRUD Data User - SMK Wikrama</h1>
-    
+    <h1>📋 CRUD Data User</h1>
     <div class="add-form">
-        <h3>Tambah User Baru</h3>
+        <h3>Tambah User</h3>
         <form method="post">
             <input type="text" name="name" placeholder="Nama" required>
             <input type="email" name="email" placeholder="Email" required>
-            <button type="submit" name="action" value="add">➕ Tambah</button>
+            <button type="submit" name="action" value="add">Tambah</button>
         </form>
     </div>
-    
     <h3>Daftar User</h3>
     <table>
         <tr><th>ID</th><th>Nama</th><th>Email</th><th>Aksi</th></tr>
 <?php
 $conn = new mysqli("localhost", "root", "rootpass123", "crud_db");
-if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
+if ($conn->connect_error) die("Koneksi gagal");
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if($_POST['action'] == 'add') {
-        $name = $conn->real_escape_string($_POST['name']);
-        $email = $conn->real_escape_string($_POST['email']);
-        $conn->query("INSERT INTO users (name, email) VALUES ('$name', '$email')");
+        $conn->query("INSERT INTO users (name, email) VALUES ('$_POST[name]', '$_POST[email]')");
         echo "<script>location.href='crud.php';</script>";
     }
     if($_POST['action'] == 'delete') {
-        $id = intval($_POST['id']);
-        $conn->query("DELETE FROM users WHERE id=$id");
+        $conn->query("DELETE FROM users WHERE id=$_POST[id]");
         echo "<script>location.href='crud.php';</script>";
     }
 }
-
 $result = $conn->query("SELECT * FROM users");
 while($row = $result->fetch_assoc()) {
-    echo "<tr>";
-    echo "<td>{$row['id']}</td>";
-    echo "<td>{$row['name']}</td>";
-    echo "<td>{$row['email']}</td>";
-    echo "<td>
-            <form method='post' style='display:inline'>
-                <input type='hidden' name='id' value='{$row['id']}'>
-                <button type='submit' name='action' value='delete' onclick='return confirm(\"Hapus user ini?\")'>🗑️ Hapus</button>
-            </form>
-          </td>";
-    echo "</tr>";
+    echo "<tr><td>{$row['id']}</td><td>{$row['name']}</td><td>{$row['email']}</td>";
+    echo "<td><form method='post'><input type='hidden' name='id' value='{$row['id']}'><button type='submit' name='action' value='delete'>Hapus</button></form></td></tr>";
 }
 ?>
     </table>
@@ -360,8 +391,7 @@ while($row = $result->fetch_assoc()) {
 EOF
     
     domain_web=${DOMAIN:-$IP_ADDR}
-    echo -e "${GREEN}✓ CRUD berhasil dibuat${NC}"
-    echo -e "${GREEN}✓ Akses: http://${domain_web}/crud.php${NC}"
+    echo -e "${GREEN}✓ CRUD berhasil dibuat: http://${domain_web}/crud.php${NC}"
 }
 
 # =================== MENU 8: SSH + SAMBA ===================
@@ -383,73 +413,55 @@ menu_set_samba() {
    read only = no
    guest ok = yes
    force user = nobody
-   force group = nogroup
    create mask = 0777
    directory mask = 0777
 EOF
     
     systemctl restart smbd
     
-    echo -e "${GREEN}✓ SSH Server aktif${NC}"
-    echo -e "${GREEN}✓ Remote via: ssh root@$IP_ADDR${NC}"
-    echo -e "${GREEN}✓ Samba Share: \\\\$IP_ADDR\\wikrama-share (Windows)${NC}"
-    echo -e "${GREEN}✓ Atau mount: //$IP_ADDR/wikrama-share (Linux)${NC}"
+    echo -e "${GREEN}✓ SSH Server aktif: ssh root@$IP_ADDR${NC}"
+    echo -e "${GREEN}✓ Samba Share: \\\\$IP_ADDR\\wikrama-share${NC}"
 }
 
-# =================== MENU 9: CLONE GITHUB + DVWA ===================
+# =================== MENU 9: GITHUB + DVWA ===================
 menu_set_github_dvwa() {
     echo -e "${BLUE}==================== 9. CLONE GITHUB & DVWA ====================${NC}"
     
     apt install git -y
     
     cd /tmp
-    if [ -d "DVWA" ]; then
-        rm -rf DVWA
-    fi
-    
+    rm -rf DVWA
     git clone https://github.com/digininja/DVWA.git
     cp -r DVWA/* /var/www/html/
     
-    # Setup DVWA
     cp /var/www/html/config/config.inc.php.dist /var/www/html/config/config.inc.php 2>/dev/null
     sed -i "s/p@ssw0rd/rootpass123/g" /var/www/html/config/config.inc.php 2>/dev/null
     mysql -u root -prootpass123 -e "CREATE DATABASE IF NOT EXISTS dvwa;" 2>/dev/null
     
-    # Set permission untuk DVWA
     chown -R www-data:www-data /var/www/html/
-    chmod -R 755 /var/www/html/
-    
-    # Enable write access untuk DVWA
     chmod 777 /var/www/html/hackable/uploads/
-    chmod 777 /var/www/html/external/phpids/0.6/lib/IDS/tmp/phpids_log.txt 2>/dev/null
-    
     systemctl restart apache2
     
     domain_web=${DOMAIN:-$IP_ADDR}
-    echo -e "${GREEN}✓ GitHub clone selesai${NC}"
     echo -e "${GREEN}✓ DVWA berhasil diinstall${NC}"
-    echo -e "${YELLOW}⚠️  PENTING: Untuk setup DVWA, akses:${NC}"
-    echo -e "${GREEN}   http://${domain_web}/setup.php${NC}"
-    echo -e "${YELLOW}   Klik 'Create/Reset Database'${NC}"
-    echo -e "${YELLOW}   Login: admin / password${NC}"
+    echo -e "${GREEN}✓ Akses: http://${domain_web}/setup.php (Create Database)${NC}"
+    echo -e "${YELLOW}  Login: admin / password${NC}"
 }
 
-# =================== MENU 10: TEST NSLOOKUP ===================
+# =================== MENU 10: TEST DNS ===================
 menu_test_dns() {
     echo -e "${BLUE}==================== 10. TEST NSLOOKUP ====================${NC}"
     
-    if [ -z "$DOMAIN" ] || [ -z "$DNS_IP" ]; then
+    if [ -z "$DOMAIN" ]; then
         echo -e "${RED}Anda harus setting DNS dulu (Menu 3)!${NC}"
         return 1
     fi
     
-    echo -e "${YELLOW}Testing nslookup untuk $DOMAIN...${NC}"
-    nslookup $DOMAIN $DNS_IP 2>/dev/null || echo -e "${RED}Gagal, cek konfigurasi DNS${NC}"
+    echo -e "${YELLOW}nslookup $DOMAIN:${NC}"
+    nslookup $DOMAIN $DNS_IP 2>/dev/null || echo "Gagal"
     
-    echo -e "${YELLOW}Testing nslookup untuk www.$DOMAIN...${NC}"
-    nslookup www.$DOMAIN $DNS_IP 2>/dev/null || echo -e "${RED}Gagal, cek konfigurasi DNS${NC}"
-    
-    echo -e "${GREEN}✓ Test selesai${NC}"
+    echo -e "${YELLOW}nslookup www.$DOMAIN:${NC}"
+    nslookup www.$DOMAIN $DNS_IP 2>/dev/null || echo "Gagal"
 }
 
 # =================== MENU UTAMA ===================
@@ -459,30 +471,30 @@ show_menu() {
     echo -e "${GREEN}   AUTOMATION SERVER SMK WIKRAMA       ${NC}"
     echo -e "${GREEN}========================================${NC}"
     echo ""
-    echo -e "${YELLOW}Status Saat Ini:${NC}"
-    echo -e "  Interface : ${GREEN}${INTERFACE:-Belum diset}${NC}"
-    echo -e "  IP Address: ${GREEN}${IP_ADDR:-Belum diset}${NC}"
-    echo -e "  Domain    : ${GREEN}${DOMAIN:-Belum diset}${NC}"
+    echo -e "${YELLOW}Status:${NC}"
+    echo "  Interface : ${GREEN}${INTERFACE:-Belum}${NC}"
+    echo "  IP Address: ${GREEN}${IP_ADDR:-Belum}${NC}"
+    echo "  Domain    : ${GREEN}${DOMAIN:-Belum}${NC}"
     echo ""
-    echo -e "${BLUE}Pilih menu konfigurasi (urutkan dari 1-10):${NC}"
+    echo -e "${BLUE}Pilih Menu:${NC}"
     echo " 1) Setting IP Address"
-    echo " 2) Install & Setup DHCP Server"
-    echo " 3) Install & Setup DNS Server (bind9)"
+    echo " 2) Setup DHCP Server"
+    echo " 3) Setup DNS Server"
     echo " 4) Install Apache2 & PHP"
     echo " 5) Install WordPress"
     echo " 6) Install phpMyAdmin"
-    echo " 7) Buat CRUD Sederhana"
-    echo " 8) Setup SSH & Samba File Sharing"
-    echo " 9) Clone GitHub & Install DVWA"
+    echo " 7) Buat CRUD"
+    echo " 8) Setup SSH & Samba"
+    echo " 9) Clone GitHub & DVWA"
     echo "10) Test NSLOOKUP"
-    echo " 0) EXIT / Selesai"
+    echo " 0) EXIT"
     echo ""
 }
 
-# =================== MAIN PROGRAM LOOP ===================
+# =================== MAIN LOOP ===================
 while true; do
     show_menu
-    read -p "Masukkan pilihan [0-10]: " choice
+    read -p "Pilihan [0-10]: " choice
     
     case $choice in
         1) menu_set_ip ;;
@@ -496,22 +508,11 @@ while true; do
         9) menu_set_github_dvwa ;;
         10) menu_test_dns ;;
         0) 
-            echo -e "${GREEN}Terima kasih! Script selesai.${NC}"
-            echo -e "${YELLOW}Ringkasan akses:${NC}"
-            domain_web=${DOMAIN:-$IP_ADDR}
-            echo "  Web: http://$domain_web"
-            [ -f /var/www/html/wp-admin ] && echo "  WordPress: http://$domain_web/wp-admin"
-            [ -f /usr/share/phpmyadmin ] && echo "  phpMyAdmin: http://$domain_web/phpmyadmin"
-            echo "  SSH: ssh root@$IP_ADDR"
-            echo "  Samba: \\\\$IP_ADDR\\wikrama-share"
+            echo -e "${GREEN}Terima kasih!${NC}"
             exit 0
             ;;
-        *) 
-            echo -e "${RED}Pilihan tidak valid!${NC}"
-            sleep 1
-            ;;
+        *) echo -e "${RED}Pilihan salah!${NC}"; sleep 1 ;;
     esac
     
-    echo ""
-    read -p "Tekan ENTER untuk kembali ke menu..."
+    read -p "Tekan ENTER untuk lanjut..."
 done
