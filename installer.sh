@@ -1,11 +1,21 @@
 #!/bin/bash
 
 # ======================================================
-# INSTALLER LENGKAP - FAHRITECH SMK WIKRAMA
+# FULL INSTALLER - FAHRITECH SMK WIKRAMA
 # ======================================================
-# Fitur: Setting IP (BEBAS), DHCP (Range 100-200), DNS,
-# Apache2, PHP, MySQL, WordPress, phpMyAdmin, CRUD Siswa,
-# SSH, Samba, DVWA
+# Fitur Lengkap:
+# 1. Setting IP (BEBAS)
+# 2. DHCP Server (Range 100-200)
+# 3. DNS Server (Bind9)
+# 4. Apache2 + PHP
+# 5. MySQL / MariaDB
+# 6. WordPress
+# 7. phpMyAdmin
+# 8. CRUD Siswa (Nama, NIS, Rombel) - FULL FUNCTIONAL
+# 9. SSH Server
+# 10. Samba File Sharing
+# 11. DVWA
+# 12. Website Utama SMK Wikrama (Tampilan Super Keren)
 # ======================================================
 
 # Warna
@@ -30,27 +40,27 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# =================== TAMPILAN AWAL FAHRITECH ===================
+# =================== TAMPILAN AWAL ===================
 show_banner() {
     clear
     echo -e "${CYAN}"
-    echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║                                                          ║"
-    echo "║   ███████╗ █████╗ ██╗  ██╗██████╗ ██╗████████╗███████╗   ║"
-    echo "║   ██╔════╝██╔══██╗██║  ██║██╔══██╗██║╚══██╔══╝██╔════╝   ║"
-    echo "║   █████╗  ███████║███████║██████╔╝██║   ██║   █████╗     ║"
-    echo "║   ██╔══╝  ██╔══██║██╔══██║██╔══██╗██║   ██║   ██╔══╝     ║"
-    echo "║   ██║     ██║  ██║██║  ██║██║  ██║██║   ██║   ███████╗   ║"
-    echo "║   ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝   ╚═╝   ╚══════╝   ║"
-    echo "║                                                          ║"
-    echo "║           🚀 AUTO INSTALLER SERVER LINUX 🚀              ║"
-    echo "║                   SMK WIKRAMA - TUTORIAL                 ║"
-    echo "╚══════════════════════════════════════════════════════════╝"
+    echo "╔══════════════════════════════════════════════════════════════════════════╗"
+    echo "║                                                                          ║"
+    echo "║   ███████╗ █████╗ ██╗  ██╗██████╗ ██╗████████╗███████╗ ██████╗██╗  ██╗   ║"
+    echo "║   ██╔════╝██╔══██╗██║  ██║██╔══██╗██║╚══██╔══╝██╔════╝██╔════╝██║  ██║   ║"
+    echo "║   █████╗  ███████║███████║██████╔╝██║   ██║   █████╗  ██║     ███████║   ║"
+    echo "║   ██╔══╝  ██╔══██║██╔══██║██╔══██╗██║   ██║   ██╔══╝  ██║     ██╔══██║   ║"
+    echo "║   ██║     ██║  ██║██║  ██║██║  ██║██║   ██║   ███████╗╚██████╗██║  ██║   ║"
+    echo "║   ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝   ╚═╝   ╚══════╝ ╚═════╝╚═╝  ╚═╝   ║"
+    echo "║                                                                          ║"
+    echo "║              🚀 FULL AUTO INSTALLER SERVER LINUX 🚀                       ║"
+    echo "║                      SMK WIKRAMA - TUTORIAL                              ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
     sleep 1
 }
 
-# =================== FUNGSI VALIDASI IP (BEBAS) ===================
+# =================== VALIDASI IP ===================
 validate_ip() {
     local ip=$1
     if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -59,9 +69,11 @@ validate_ip() {
     return 1
 }
 
-# =================== MENU 1: SETTING IP (BEBAS) ===================
+# =================== MENU 1: SETTING IP ===================
 menu_set_ip() {
-    echo -e "${BLUE}==================== 1. SETTING IP ADDRESS ====================${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}                    1. SETTING IP ADDRESS                        ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     
     interfaces=($(ip link show | grep -E '^[0-9]+: ens|eth' | awk -F': ' '{print $2}'))
     
@@ -85,10 +97,8 @@ menu_set_ip() {
     fi
     
     echo ""
-    echo -e "${YELLOW}📌 CONTOH IP:${NC}"
-    echo "   192.168.1.10"
-    echo "   192.168.27.50"
-    echo "   10.10.10.5"
+    echo -e "${YELLOW}📌 CONTOH IP VALID:${NC}"
+    echo "   192.168.1.10     192.168.27.50     10.10.10.5"
     echo -e "${GREEN}   (BEBAS, tidak ada batasan!)${NC}"
     echo ""
     
@@ -126,9 +136,11 @@ EOF
     echo -e "${GREEN}✅ Gateway: $GATEWAY${NC}"
 }
 
-# =================== MENU 2: DHCP SERVER (RANGE 100-200) ===================
+# =================== MENU 2: DHCP SERVER ===================
 menu_set_dhcp() {
-    echo -e "${BLUE}==================== 2. INSTALL & SETUP DHCP SERVER ====================${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}                    2. SETUP DHCP SERVER                         ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     
     interfaces=($(ip link show | grep -E '^[0-9]+: ens|eth' | awk -F': ' '{print $2}'))
     
@@ -190,7 +202,9 @@ EOF
 
 # =================== MENU 3: DNS SERVER ===================
 menu_set_dns() {
-    echo -e "${BLUE}==================== 3. INSTALL & SETUP DNS SERVER ====================${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}                    3. SETUP DNS SERVER                          ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     
     echo ""
     echo -e "${YELLOW}📌 CONTOH DOMAIN: smkwikrama.local${NC}"
@@ -263,7 +277,9 @@ EOF
 
 # =================== MENU 4: APACHE2 + PHP ===================
 menu_set_apache() {
-    echo -e "${BLUE}==================== 4. INSTALL APACHE2 & PHP ====================${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}                    4. INSTALL APACHE2 & PHP                     ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     
     echo ""
     echo -e "${YELLOW}⚙️  Menginstall Apache2 dan PHP...${NC}"
@@ -271,75 +287,40 @@ menu_set_apache() {
     systemctl enable apache2
     systemctl restart apache2
     
-    domain_web=${DOMAIN:-$IP_ADDR}
-    cat > /var/www/html/index.html <<EOF
-<!DOCTYPE html>
-<html>
-<head>
-    <title>SMK Wikrama - Web Tutorial</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .card {
-            background: rgba(255,255,255,0.95);
-            border-radius: 20px;
-            padding: 40px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            text-align: center;
-            max-width: 500px;
-            margin: 20px;
-        }
-        h1 { color: #667eea; margin-bottom: 20px; }
-        .info { color: #555; margin: 20px 0; }
-        .features { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-top: 30px; }
-        .badge { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 8px 15px; border-radius: 20px; font-size: 14px; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1>📚 SMK Wikrama</h1>
-        <h3>Web Tutorial Server</h3>
-        <div class="info">
-            <p>Server: <strong>$domain_web</strong></p>
-            <p>IP: <strong>$DNS_IP</strong></p>
-        </div>
-        <div class="features">
-            <span class="badge">📝 WordPress</span>
-            <span class="badge">🗄️ phpMyAdmin</span>
-            <span class="badge">📊 CRUD</span>
-            <span class="badge">🔐 DVWA</span>
-        </div>
-    </div>
-</body>
-</html>
-EOF
-    
-    echo ""
     echo -e "${GREEN}✅ Apache2 & PHP berhasil diinstall${NC}"
-    echo -e "${GREEN}✅ Web: http://${domain_web}${NC}"
 }
 
-# =================== MENU 5: WORDPRESS ===================
-menu_set_wordpress() {
-    echo -e "${BLUE}==================== 5. INSTALL WORDPRESS ====================${NC}"
+# =================== MENU 5: MYSQL ===================
+menu_set_mysql() {
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}                    5. INSTALL MYSQL                             ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     
     echo ""
-    echo -e "${YELLOW}⚙️  Menginstall MySQL...${NC}"
+    echo -e "${YELLOW}⚙️  Menginstall MySQL/MariaDB...${NC}"
     apt install mariadb-server -y
     
     mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'rootpass123';" 2>/dev/null
+    mysql -u root -prootpass123 -e "FLUSH PRIVILEGES;" 2>/dev/null
+    
+    echo -e "${GREEN}✅ MySQL berhasil diinstall${NC}"
+    echo -e "${YELLOW}🔑 Password root MySQL: rootpass123${NC}"
+}
+
+# =================== MENU 6: WORDPRESS ===================
+menu_set_wordpress() {
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}                    6. INSTALL WORDPRESS                        ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    
+    echo ""
+    echo -e "${YELLOW}⚙️  Setup database WordPress...${NC}"
     mysql -u root -prootpass123 -e "CREATE DATABASE IF NOT EXISTS wordpress;" 2>/dev/null
     mysql -u root -prootpass123 -e "CREATE USER IF NOT EXISTS 'wpuser'@'localhost' IDENTIFIED BY 'wppass123';" 2>/dev/null
     mysql -u root -prootpass123 -e "GRANT ALL PRIVILEGES ON wordpress.* TO 'wpuser'@'localhost';" 2>/dev/null
     mysql -u root -prootpass123 -e "FLUSH PRIVILEGES;" 2>/dev/null
     
+    echo -e "${YELLOW}⚙️  Download WordPress...${NC}"
     cd /tmp
     wget -q https://wordpress.org/latest.tar.gz
     tar -xzf latest.tar.gz
@@ -358,9 +339,11 @@ menu_set_wordpress() {
     echo -e "${GREEN}✅ Akses: http://${domain_web}/wp-admin${NC}"
 }
 
-# =================== MENU 6: phpMyAdmin ===================
+# =================== MENU 7: phpMyAdmin ===================
 menu_set_phpmyadmin() {
-    echo -e "${BLUE}==================== 6. INSTALL phpMyAdmin ====================${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}                    7. INSTALL phpMyAdmin                       ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     
     echo ""
     echo -e "${YELLOW}⚙️  Menginstall phpMyAdmin...${NC}"
@@ -381,13 +364,211 @@ menu_set_phpmyadmin() {
     echo -e "${YELLOW}🔑 Login: root / rootpass123${NC}"
 }
 
-# =================== MENU 7: CRUD SISWA (Nama, NIS, Rombel) ===================
-menu_set_crud() {
-    echo -e "${BLUE}==================== 7. MEMBUAT CRUD SISWA ====================${NC}"
+# =================== MENU 8: WEBSITE UTAMA & CRUD ===================
+menu_set_website() {
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}                    8. WEBSITE UTAMA & CRUD                     ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     
     echo ""
-    echo -e "${YELLOW}⚙️  Membuat database dan tabel siswa...${NC}"
+    echo -e "${YELLOW}🌐 Membuat Website Utama SMK Wikrama...${NC}"
     
+    # Website Utama
+    cat > /var/www/html/index.php << 'EOF_MAIN'
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMK Wikrama - Web Tutorial Server</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .navbar {
+            background: rgba(255,255,255,0.98);
+            backdrop-filter: blur(10px);
+            padding: 15px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .logo h1 {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 28px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        .nav-links a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: 0.3s;
+            padding: 8px 15px;
+            border-radius: 25px;
+        }
+        .nav-links a:hover {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        .hero {
+            text-align: center;
+            padding: 100px 20px;
+            color: white;
+        }
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            animation: fadeInUp 0.8s ease;
+        }
+        .hero p {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        .btn-hero {
+            display: inline-block;
+            padding: 15px 40px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: 0.3s;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+        .btn-hero:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .features {
+            background: white;
+            padding: 60px 40px;
+        }
+        .features h2 {
+            text-align: center;
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 50px;
+        }
+        .feature-grid {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .feature-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            width: 250px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .feature-card i {
+            font-size: 50px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+        }
+        .feature-card h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .feature-card p {
+            color: #666;
+            font-size: 14px;
+        }
+        .footer {
+            background: #1a1a2e;
+            color: white;
+            text-align: center;
+            padding: 30px;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 768px) {
+            .navbar { flex-direction: column; gap: 15px; padding: 15px 20px; }
+            .hero h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo"><h1><i class="fas fa-laptop-code"></i> SMK Wikrama</h1></div>
+        <div class="nav-links">
+            <a href="index.php"><i class="fas fa-home"></i> Home</a>
+            <a href="crud_siswa.php"><i class="fas fa-users"></i> CRUD Siswa</a>
+            <a href="wp-admin"><i class="fab fa-wordpress"></i> WordPress</a>
+            <a href="phpmyadmin"><i class="fas fa-database"></i> phpMyAdmin</a>
+            <a href="setup.php"><i class="fas fa-shield-alt"></i> DVWA</a>
+        </div>
+    </div>
+    <div class="hero">
+        <h1>Selamat Datang di Web Tutorial</h1>
+        <p>SMK Wikrama - Belajar Server dan Web Development</p>
+        <a href="#features" class="btn-hero"><i class="fas fa-rocket"></i> Mulai Belajar</a>
+    </div>
+    <div class="features" id="features">
+        <h2><i class="fas fa-star"></i> Fitur Unggulan</h2>
+        <div class="feature-grid">
+            <div class="feature-card" onclick="location.href='crud_siswa.php'">
+                <i class="fas fa-database"></i>
+                <h3>CRUD Siswa</h3>
+                <p>Kelola data siswa (Nama, NIS, Rombel) dengan mudah</p>
+            </div>
+            <div class="feature-card" onclick="location.href='wp-admin'">
+                <i class="fab fa-wordpress"></i>
+                <h3>WordPress</h3>
+                <p>Blog CMS terpopuler di dunia</p>
+            </div>
+            <div class="feature-card" onclick="location.href='phpmyadmin'">
+                <i class="fas fa-server"></i>
+                <h3>phpMyAdmin</h3>
+                <p>Manajemen database MySQL</p>
+            </div>
+            <div class="feature-card" onclick="location.href='setup.php'">
+                <i class="fas fa-shield-alt"></i>
+                <h3>DVWA</h3>
+                <p>Belajar keamanan web</p>
+            </div>
+        </div>
+    </div>
+    <div class="footer">
+        <p><i class="fas fa-code"></i> SMK Wikrama - Web Tutorial Server | 2025</p>
+        <p style="font-size: 12px; margin-top: 10px;">Powered by FAHRITECH</p>
+    </div>
+</body>
+</html>
+EOF_MAIN
+
+    # Database CRUD
+    echo -e "${YELLOW}📦 Membuat database CRUD...${NC}"
     mysql -u root -prootpass123 -e "CREATE DATABASE IF NOT EXISTS sekolah;" 2>/dev/null
     mysql -u root -prootpass123 -e "CREATE TABLE IF NOT EXISTS sekolah.siswa (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -395,26 +576,33 @@ menu_set_crud() {
         nis VARCHAR(20) NOT NULL UNIQUE,
         rombel VARCHAR(50) NOT NULL
     );" 2>/dev/null
-    
-    cat > /var/www/html/crud_siswa.php <<'PHP_EOF'
+
+    # File CRUD
+    cat > /var/www/html/crud_siswa.php << 'EOF_CRUD'
 <?php
 $conn = new mysqli("localhost", "root", "rootpass123", "sekolah");
 if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
 
 $message = '';
+$message_type = '';
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['action'])) {
         $action = $_POST['action'];
+        
         if ($action == 'add') {
             $nama = $conn->real_escape_string($_POST['nama']);
             $nis = $conn->real_escape_string($_POST['nis']);
             $rombel = $conn->real_escape_string($_POST['rombel']);
+            
             $check = $conn->query("SELECT id FROM siswa WHERE nis='$nis'");
             if ($check->num_rows > 0) {
-                $message = '<div class="alert error">❌ NIS sudah terdaftar!</div>';
+                $message = "NIS sudah terdaftar!";
+                $message_type = "error";
             } else {
                 if ($conn->query("INSERT INTO siswa (nama, nis, rombel) VALUES ('$nama', '$nis', '$rombel')")) {
-                    $message = '<div class="alert success">✅ Data berhasil ditambahkan!</div>';
+                    $message = "Data berhasil ditambahkan!";
+                    $message_type = "success";
                 }
             }
         }
@@ -423,14 +611,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $nama = $conn->real_escape_string($_POST['nama']);
             $nis = $conn->real_escape_string($_POST['nis']);
             $rombel = $conn->real_escape_string($_POST['rombel']);
-            if ($conn->query("UPDATE siswa SET nama='$nama', nis='$nis', rombel='$rombel' WHERE id=$id")) {
-                $message = '<div class="alert success">✅ Data berhasil diupdate!</div>';
+            
+            $check = $conn->query("SELECT id FROM siswa WHERE nis='$nis' AND id != $id");
+            if ($check->num_rows > 0) {
+                $message = "NIS sudah digunakan siswa lain!";
+                $message_type = "error";
+            } else {
+                if ($conn->query("UPDATE siswa SET nama='$nama', nis='$nis', rombel='$rombel' WHERE id=$id")) {
+                    $message = "Data berhasil diupdate!";
+                    $message_type = "success";
+                }
             }
         }
         elseif ($action == 'delete') {
             $id = intval($_POST['id']);
             if ($conn->query("DELETE FROM siswa WHERE id=$id")) {
-                $message = '<div class="alert success">✅ Data berhasil dihapus!</div>';
+                $message = "Data berhasil dihapus!";
+                $message_type = "success";
             }
         }
     }
@@ -450,7 +647,7 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CRUD Siswa - SMK Wikrama</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -460,7 +657,7 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
             min-height: 100vh;
             padding: 40px 20px;
         }
-        .container { max-width: 1200px; margin: 0 auto; }
+        .container { max-width: 1400px; margin: 0 auto; }
         .header { text-align: center; margin-bottom: 40px; }
         .header h1 { font-size: 2.5rem; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
         .header h1 i { margin-right: 15px; }
@@ -523,10 +720,30 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102,126,234,0.4);
         }
-        .btn-edit { background: #ffc107; color: #333; padding: 8px 15px; border-radius: 8px; text-decoration: none; display: inline-block; }
+        .btn-edit {
+            background: #ffc107;
+            color: #333;
+            padding: 6px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 12px;
+        }
         .btn-edit:hover { background: #ffb300; }
-        .btn-delete { background: #dc3545; color: white; padding: 8px 15px; border-radius: 8px; border: none; cursor: pointer; }
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+        }
         .btn-delete:hover { background: #c82333; }
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-cancel:hover { background: #5a6268; }
         .alert {
             padding: 15px 20px;
             border-radius: 10px;
@@ -588,9 +805,18 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
             text-decoration: none;
         }
         .modal-body { padding: 25px; }
-        .empty-state { text-align: center; padding: 40px; color: #999; }
-        .empty-state i { font-size: 50px; margin-bottom: 15px; }
+        .modal-actions { display: flex; gap: 15px; margin-top: 20px; }
+        .empty-state { text-align: center; padding: 60px; color: #999; }
+        .empty-state i { font-size: 60px; margin-bottom: 20px; color: #ddd; }
         .footer { text-align: center; margin-top: 30px; color: rgba(255,255,255,0.7); font-size: 14px; }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 20px;
+            font-size: 11px;
+        }
     </style>
 </head>
 <body>
@@ -598,14 +824,18 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
         <div class="header">
             <h1><i class="fas fa-users"></i> Manajemen Data Siswa</h1>
             <p>SMK Wikrama - Sistem CRUD Nama, NIS, dan Rombel</p>
+            <p><span class="badge"><i class="fas fa-check-circle"></i> Full Functional</span></p>
         </div>
         
         <div class="card">
-            <div class="card-header">
-                <h2><i class="fas fa-plus-circle"></i> Tambah Data Siswa</h2>
-            </div>
+            <div class="card-header"><h2><i class="fas fa-plus-circle"></i> Tambah Data Siswa</h2></div>
             <div class="card-body">
-                <?php echo $message; ?>
+                <?php if($message): ?>
+                <div class="alert <?php echo $message_type; ?>">
+                    <i class="fas <?php echo $message_type == 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'; ?>"></i>
+                    <?php echo $message; ?>
+                </div>
+                <?php endif; ?>
                 <form method="POST" action="">
                     <div class="form-group">
                         <label><i class="fas fa-user"></i> Nama Lengkap</label>
@@ -627,16 +857,12 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
         </div>
         
         <div class="card">
-            <div class="card-header">
-                <h2><i class="fas fa-list"></i> Daftar Siswa</h2>
-            </div>
+            <div class="card-header"><h2><i class="fas fa-list"></i> Daftar Siswa</h2></div>
             <div class="card-body">
                 <div class="table-wrapper">
                     <?php if ($siswa->num_rows > 0): ?>
                     <table>
-                        <thead>
-                            <tr><th>No</th><th>Nama</th><th>NIS</th><th>Rombel</th><th>Aksi</th></tr>
-                        </thead>
+                        <thead><tr><th>No</th><th>Nama</th><th>NIS</th><th>Rombel</th><th>Aksi</th></tr></thead>
                         <tbody>
                             <?php $no = 1; while($row = $siswa->fetch_assoc()): ?>
                             <tr>
@@ -645,16 +871,12 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
                                 <td><?php echo htmlspecialchars($row['nis']); ?></td>
                                 <td><?php echo htmlspecialchars($row['rombel']); ?></td>
                                 <td class="action-buttons">
-                                    <a href="?edit=<?php echo $row['id']; ?>" class="btn-edit">
-                                        <i class="fas fa-edit"></i> Edit
-                                    </a>
-                                    <form method="POST" action="" style="display:inline;" onsubmit="return confirm('Yakin ingin menghapus data ini?')">
+                                    <a href="?edit=<?php echo $row['id']; ?>" class="btn-edit"><i class="fas fa-edit"></i> Edit</a>
+                                    <form method="POST" action="" style="display:inline;" onsubmit="return confirm('Yakin ingin menghapus data <?php echo addslashes($row['nama']); ?>?')">
                                         <input type="hidden" name="id" value="<?php echo $row['id']; ?>">
-                                        <button type="submit" name="action" value="delete" class="btn-delete">
-                                            <i class="fas fa-trash"></i> Hapus
-                                        </button>
+                                        <button type="submit" name="action" value="delete" class="btn-delete"><i class="fas fa-trash"></i> Hapus</button>
                                     </form>
-                                 </td>
+                                </td>
                             </tr>
                             <?php endwhile; ?>
                         </tbody>
@@ -672,6 +894,7 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
         
         <div class="footer">
             <p><i class="fas fa-code"></i> SMK Wikrama - Sistem Informasi Siswa | <?php echo date('Y'); ?></p>
+            <p style="font-size: 12px;">✅ Fitur: Tambah | Edit | Hapus | Cancel</p>
         </div>
     </div>
     
@@ -697,35 +920,35 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
                         <label><i class="fas fa-graduation-cap"></i> Rombel</label>
                         <input type="text" name="rombel" value="<?php echo htmlspecialchars($edit_data['rombel']); ?>" required>
                     </div>
-                    <button type="submit" name="action" value="edit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Update Data
-                    </button>
-                    <a href="crud_siswa.php">
-                        <button type="button" class="btn" style="background:#6c757d; color:white;">
-                            <i class="fas fa-times"></i> Batal
-                        </button>
-                    </a>
+                    <div class="modal-actions">
+                        <button type="submit" name="action" value="edit" class="btn btn-primary"><i class="fas fa-save"></i> Update Data</button>
+                        <a href="crud_siswa.php"><button type="button" class="btn btn-cancel"><i class="fas fa-times"></i> Batal</button></a>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
     <?php endif; ?>
+    
+    <script>
+        setTimeout(function() {
+            var alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) { alert.style.display = 'none'; });
+        }, 3000);
+    </script>
 </body>
 </html>
-PHP_EOF
-    
-    rm -f /var/www/html/crud.php 2>/dev/null
-    
-    domain_web=${DOMAIN:-$IP_ADDR}
+EOF_CRUD
+
     echo ""
-    echo -e "${GREEN}✅ CRUD Siswa berhasil dibuat!${NC}"
-    echo -e "${GREEN}✅ Akses: http://${domain_web}/crud_siswa.php${NC}"
-    echo -e "${YELLOW}📌 Fitur: Tambah, Edit, Hapus Data Siswa (Nama, NIS, Rombel)${NC}"
+    echo -e "${GREEN}✅ Website Utama dan CRUD berhasil dibuat!${NC}"
 }
 
-# =================== MENU 8: SSH + SAMBA ===================
+# =================== MENU 9: SSH & SAMBA ===================
 menu_set_samba() {
-    echo -e "${BLUE}==================== 8. SSH & SAMBA FILE SHARING ====================${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}                    9. SETUP SSH & SAMBA                         ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     
     echo ""
     echo -e "${YELLOW}⚙️  Menginstall SSH dan Samba...${NC}"
@@ -757,9 +980,11 @@ EOF
     echo -e "${GREEN}✅ Samba Share: \\\\$IP_ADDR\\wikrama-share${NC}"
 }
 
-# =================== MENU 9: GITHUB + DVWA ===================
-menu_set_github_dvwa() {
-    echo -e "${BLUE}==================== 9. CLONE GITHUB & DVWA ====================${NC}"
+# =================== MENU 10: DVWA ===================
+menu_set_dvwa() {
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}                    10. INSTALL DVWA                            ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     
     echo ""
     echo -e "${YELLOW}⚙️  Clone DVWA dari GitHub...${NC}"
@@ -786,9 +1011,11 @@ menu_set_github_dvwa() {
     echo -e "${YELLOW}🔑 Login: admin / password${NC}"
 }
 
-# =================== MENU 10: TEST DNS ===================
+# =================== MENU 11: TEST DNS ===================
 menu_test_dns() {
-    echo -e "${BLUE}==================== 10. TEST NSLOOKUP ====================${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}                    11. TEST NSLOOKUP                           ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     
     if [ -z "$DOMAIN" ]; then
         echo -e "${RED}❌ Anda harus setting DNS dulu (Menu 3)!${NC}"
@@ -805,93 +1032,91 @@ menu_test_dns() {
     nslookup www.$DOMAIN $DNS_IP 2>/dev/null || echo -e "${RED}Gagal${NC}"
 }
 
-# =================== MENU 11: INSTALL SEMUA SEKALIGUS ===================
+# =================== MENU 12: INSTALL SEMUA ===================
 menu_install_all() {
-    echo -e "${BLUE}==================== INSTALL SEMUA FITUR ====================${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}              INSTALL SEMUA FITUR SEKALIGUS                     ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     
-    # Setting IP dulu
-    menu_set_ip
-    if [ $? -ne 0 ]; then return 1; fi
+    menu_set_ip || return 1
+    menu_set_dhcp || return 1
+    menu_set_dns || return 1
+    menu_set_apache || return 1
+    menu_set_mysql || return 1
+    menu_set_wordpress || return 1
+    menu_set_phpmyadmin || return 1
+    menu_set_website || return 1
+    menu_set_samba || return 1
+    menu_set_dvwa || return 1
     
-    # DHCP
-    menu_set_dhcp
-    if [ $? -ne 0 ]; then return 1; fi
+    # Restart semua service
+    systemctl restart apache2
+    systemctl restart mysql
     
-    # DNS
-    menu_set_dns
-    if [ $? -ne 0 ]; then return 1; fi
-    
-    # Apache
-    menu_set_apache
-    if [ $? -ne 0 ]; then return 1; fi
-    
-    # WordPress
-    menu_set_wordpress
-    if [ $? -ne 0 ]; then return 1; fi
-    
-    # phpMyAdmin
-    menu_set_phpmyadmin
-    if [ $? -ne 0 ]; then return 1; fi
-    
-    # CRUD
-    menu_set_crud
-    if [ $? -ne 0 ]; then return 1; fi
-    
-    # Samba
-    menu_set_samba
-    if [ $? -ne 0 ]; then return 1; fi
-    
-    # DVWA
-    menu_set_github_dvwa
-    if [ $? -ne 0 ]; then return 1; fi
-    
-    echo ""
-    echo -e "${GREEN}════════════════════════════════════════════════════════════════${NC}"
-    echo -e "${GREEN}              ✅ SEMUA FITUR BERHASIL DIINSTALL! ✅${NC}"
-    echo -e "${GREEN}════════════════════════════════════════════════════════════════${NC}"
+    # Tampilkan hasil
+    clear
+    echo -e "${GREEN}"
+    echo "╔══════════════════════════════════════════════════════════════════════════╗"
+    echo "║                                                                          ║"
+    echo "║              ✅ SEMUA FITUR BERHASIL DIINSTALL! ✅                        ║"
+    echo "║                                                                          ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
     echo ""
     echo -e "${CYAN}🌐 AKSES WEB SERVER:${NC}"
-    echo "   📍 Website Utama    : http://$IP_ADDR/"
-    echo "   📍 CRUD Siswa       : http://$IP_ADDR/crud_siswa.php"
-    echo "   📍 WordPress        : http://$IP_ADDR/wp-admin"
-    echo "   📍 phpMyAdmin       : http://$IP_ADDR/phpmyadmin"
-    echo "   📍 DVWA             : http://$IP_ADDR/setup.php"
+    echo "   ┌─────────────────────────────────────────────────────────────────────────┐"
+    echo "   │  🔥 Website Utama    : http://$IP_ADDR/                                 │"
+    echo "   │  📋 CRUD Siswa       : http://$IP_ADDR/crud_siswa.php                   │"
+    echo "   │  📝 WordPress        : http://$IP_ADDR/wp-admin                         │"
+    echo "   │  🗄️  phpMyAdmin       : http://$IP_ADDR/phpmyadmin                       │"
+    echo "   │  🔐 DVWA             : http://$IP_ADDR/setup.php                         │"
+    echo "   └─────────────────────────────────────────────────────────────────────────┘"
     echo ""
-    echo -e "${YELLOW}🔑 LOGIN:${NC}"
-    echo "   📍 phpMyAdmin : root / rootpass123"
-    echo "   📍 DVWA       : admin / password"
+    echo -e "${YELLOW}🔑 LOGIN INFORMATION:${NC}"
+    echo "   ┌─────────────────────────────────────────────────────────────────────────┐"
+    echo "   │  phpMyAdmin : root / rootpass123                                         │"
+    echo "   │  WordPress  : (isi sendiri saat install pertama)                         │"
+    echo "   │  DVWA       : admin / password                                           │"
+    echo "   │  MySQL      : root / rootpass123                                         │"
+    echo "   └─────────────────────────────────────────────────────────────────────────┘"
     echo ""
-    echo -e "${CYAN}💻 REMOTE:${NC}"
-    echo "   📍 SSH    : ssh root@$IP_ADDR"
-    echo "   📍 Samba  : \\\\$IP_ADDR\\wikrama-share"
+    echo -e "${CYAN}💻 REMOTE ACCESS:${NC}"
+    echo "   ┌─────────────────────────────────────────────────────────────────────────┐"
+    echo "   │  🔌 SSH    : ssh root@$IP_ADDR                                          │"
+    echo "   │  📁 Samba  : \\\\$IP_ADDR\\wikrama-share                                  │"
+    echo "   └─────────────────────────────────────────────────────────────────────────┘"
     echo ""
+    echo -e "${GREEN}══════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}              TERIMA KASIH TELAH MENGGUNAKAN FAHRITECH!                  ${NC}"
+    echo -e "${GREEN}══════════════════════════════════════════════════════════════════════════${NC}"
 }
 
 # =================== MENU UTAMA ===================
 show_menu() {
-    echo -e "${BLUE}========================================${NC}"
-    echo -e "${BLUE}        MENU INSTALLASI SERVER          ${NC}"
-    echo -e "${BLUE}========================================${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BLUE}                    MENU INSTALLASI SERVER                        ${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     echo ""
     echo -e "${YELLOW}📊 STATUS SAAT INI:${NC}"
     echo -e "   ${CYAN}├ Interface :${NC} ${GREEN}${INTERFACE:-Belum diset}${NC}"
     echo -e "   ${CYAN}├ IP Address:${NC} ${GREEN}${IP_ADDR:-Belum diset}${NC}"
     echo -e "   ${CYAN}└ Domain    :${NC} ${GREEN}${DOMAIN:-Belum diset}${NC}"
     echo ""
-    echo -e "${BLUE}========================================${NC}"
-    echo -e "${GREEN} 1)${NC} Setting IP Address (BEBAS)"
-    echo -e "${GREEN} 2)${NC} Setup DHCP Server (Range 100-200)"
-    echo -e "${GREEN} 3)${NC} Setup DNS Server"
-    echo -e "${GREEN} 4)${NC} Install Apache2 & PHP"
-    echo -e "${GREEN} 5)${NC} Install WordPress"
-    echo -e "${GREEN} 6)${NC} Install phpMyAdmin"
-    echo -e "${GREEN} 7)${NC} Buat CRUD Siswa (Nama, NIS, Rombel)"
-    echo -e "${GREEN} 8)${NC} Setup SSH & Samba"
-    echo -e "${GREEN} 9)${NC} Clone GitHub & DVWA"
-    echo -e "${GREEN}10)${NC} Test NSLOOKUP"
-    echo -e "${CYAN}11)${NC} INSTALL SEMUA SEKALIGUS (REKOMENDASI)"
-    echo -e "${RED} 0)${NC} EXIT"
-    echo -e "${BLUE}========================================${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}  1)${NC} Setting IP Address (BEBAS)"
+    echo -e "${GREEN}  2)${NC} Setup DHCP Server (Range 100-200)"
+    echo -e "${GREEN}  3)${NC} Setup DNS Server"
+    echo -e "${GREEN}  4)${NC} Install Apache2 & PHP"
+    echo -e "${GREEN}  5)${NC} Install MySQL"
+    echo -e "${GREEN}  6)${NC} Install WordPress"
+    echo -e "${GREEN}  7)${NC} Install phpMyAdmin"
+    echo -e "${GREEN}  8)${NC} Website Utama + CRUD Siswa"
+    echo -e "${GREEN}  9)${NC} Setup SSH & Samba"
+    echo -e "${GREEN} 10)${NC} Install DVWA"
+    echo -e "${GREEN} 11)${NC} Test NSLOOKUP"
+    echo -e "${CYAN} 12)${NC} INSTALL SEMUA SEKALIGUS ⭐ (REKOMENDASI)"
+    echo -e "${RED}  0)${NC} EXIT"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
     echo ""
 }
 
@@ -899,20 +1124,21 @@ show_menu() {
 while true; do
     show_banner
     show_menu
-    read -p "➡️  Pilih menu [0-11]: " choice
+    read -p "➡️  Pilih menu [0-12]: " choice
     
     case $choice in
         1) menu_set_ip ;;
         2) menu_set_dhcp ;;
         3) menu_set_dns ;;
         4) menu_set_apache ;;
-        5) menu_set_wordpress ;;
-        6) menu_set_phpmyadmin ;;
-        7) menu_set_crud ;;
-        8) menu_set_samba ;;
-        9) menu_set_github_dvwa ;;
-        10) menu_test_dns ;;
-        11) menu_install_all ;;
+        5) menu_set_mysql ;;
+        6) menu_set_wordpress ;;
+        7) menu_set_phpmyadmin ;;
+        8) menu_set_website ;;
+        9) menu_set_samba ;;
+        10) menu_set_dvwa ;;
+        11) menu_test_dns ;;
+        12) menu_install_all ;;
         0) 
             echo -e "${GREEN}Terima kasih telah menggunakan FAHRITECH!${NC}"
             exit 0
