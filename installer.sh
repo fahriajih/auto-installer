@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # ======================================================
-# FULL INSTALLER - FAHRITECH SMK WIKRAMA (UNIVERSAL)
+# FINAL INSTALLER - FAHRITECH SMK WIKRAMA
+# ======================================================
+# VERSI: 4.0 - FULLY WORKING
 # ======================================================
 
 RED='\033[0;31m'
@@ -14,6 +16,7 @@ NC='\033[0m'
 # Variabel
 INTERFACE=""
 IP_ADDR=""
+NETMASK="255.255.255.0"
 GATEWAY=""
 DOMAIN=""
 DNS_IP=""
@@ -41,16 +44,17 @@ validate_ip() {
     [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && return 0 || return 1
 }
 
-# =================== MENU 1: SET IP (PAKAI IFCONFIG) ===================
+# =================== MENU 1: SETTING IP (FIX) ===================
 menu_set_ip() {
     echo -e "${BLUE}══════════════════ 1. SETTING IP ADDRESS ══════════════════${NC}"
     
-    # Tampilkan interface
+    # Tampilkan interface yang UP
     echo -e "${GREEN}Interface yang tersedia:${NC}"
     interfaces=($(ip link show | grep -E '^[0-9]+:' | grep -v lo | awk -F': ' '{print $2}' | cut -d'@' -f1))
     
     for i in "${!interfaces[@]}"; do
-        echo "  ${CYAN}$((i+1)))${NC} ${interfaces[$i]}"
+        status=$(ip link show ${interfaces[$i]} | grep -o "UP" || echo "DOWN")
+        echo "  ${CYAN}$((i+1)))${NC} ${interfaces[$i]} [${status}]"
     done
     
     read -p "Pilih interface [1-${#interfaces[@]}]: " pilih_interface
@@ -62,17 +66,26 @@ menu_set_ip() {
         validate_ip "$IP_ADDR" && break || echo -e "${RED}Format IP salah!${NC}"
     done
     
-    read -p "Masukkan Netmask (default 255.255.255.0): " NETMASK
-    NETMASK=${NETMASK:-255.255.255.0}
+    read -p "Masukkan Netmask (default 255.255.255.0): " input_netmask
+    NETMASK=${input_netmask:-255.255.255.0}
     
     read -p "Masukkan Gateway: " GATEWAY
     
-    # Backup konfigurasi lama
-    cp /etc/network/interfaces /etc/network/interfaces.bak 2>/dev/null
+    # HIDUPKAN INTERFACE DULU
+    echo -e "${YELLOW}Menghidupkan interface $INTERFACE...${NC}"
+    ip link set $INTERFACE up
     
-    # Konfigurasi static IP (Debian/Ubuntu style)
+    # Hapus IP lama
+    ip addr flush dev $INTERFACE 2>/dev/null
+    
+    # Set IP baru
+    ip addr add $IP_ADDR/24 dev $INTERFACE
+    
+    # Set gateway
+    ip route add default via $GATEWAY 2>/dev/null
+    
+    # Simpan ke /etc/network/interfaces
     cat > /etc/network/interfaces <<EOF
-# This file describes the network interfaces available on your system
 auto lo
 iface lo inet loopback
 
@@ -83,13 +96,16 @@ iface $INTERFACE inet static
     gateway $GATEWAY
     dns-nameservers 8.8.8.8 8.8.4.4
 EOF
-
-    # Restart network
-    systemctl restart networking 2>/dev/null || service networking restart 2>/dev/null || ifdown $INTERFACE && ifup $INTERFACE
     
+    # Restart network
+    systemctl restart networking 2>/dev/null || service networking restart 2>/dev/null || /etc/init.d/networking restart 2>/dev/null
+    
+    echo ""
     echo -e "${GREEN}✅ IP $IP_ADDR berhasil diset ke $INTERFACE${NC}"
     echo -e "${GREEN}✅ Netmask: $NETMASK${NC}"
     echo -e "${GREEN}✅ Gateway: $GATEWAY${NC}"
+    echo ""
+    echo -e "${YELLOW}📌 Cek hasil: ip addr show $INTERFACE${NC}"
 }
 
 # =================== MENU 2: DHCP ===================
@@ -426,7 +442,7 @@ $data = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
 EOF_CRUD
 
     systemctl restart apache2
-    echo -e "${GREEN}✅ Website dan CRUD berhasil!${NC}"
+    echo -e "${GREEN}✅ Website dan CRUD berhasil dibuat!${NC}"
 }
 
 # =================== MENU 9: SSH & SAMBA ===================
@@ -499,28 +515,48 @@ menu_install_all() {
     systemctl restart apache2
     systemctl restart mysql
     
+    # Cek IP yang aktif
+    ACTUAL_IP=$(ip addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v 127.0.0.1 | head -1)
+    
     clear
     echo -e "${GREEN}"
-    echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║              ✅ SEMUA FITUR BERHASIL DIINSTALL! ✅             ║"
-    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo "╔══════════════════════════════════════════════════════════════════════════╗"
+    echo "║                    ✅ SEMUA FITUR BERHASIL DIINSTALL! ✅                  ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
-    echo -e "${CYAN}🌐 AKSES WEB:${NC}"
-    echo "   🔥 Website Utama  : http://$IP_ADDR/"
-    echo "   📋 CRUD Siswa     : http://$IP_ADDR/crud_siswa.php"
-    echo "   📝 WordPress      : http://$IP_ADDR/wp-admin"
-    echo "   🗄️  phpMyAdmin     : http://$IP_ADDR/phpmyadmin"
-    echo "   🔐 DVWA           : http://$IP_ADDR/setup.php"
     echo ""
-    echo -e "${YELLOW}🔑 LOGIN:${NC}"
-    echo "   phpMyAdmin : root / rootpass123"
-    echo "   DVWA       : admin / password"
+    echo -e "${CYAN}🌐 AKSES WEB SERVER (BUKA DI BROWSER):${NC}"
+    echo "   ┌─────────────────────────────────────────────────────────────────────────┐"
+    echo "   │                                                                         │"
+    echo "   │  🔥 WEBSITE UTAMA    : http://$ACTUAL_IP/                               │"
+    echo "   │                                                                         │"
+    echo "   │  📋 CRUD SISWA       : http://$ACTUAL_IP/crud_siswa.php                 │"
+    echo "   │                                                                         │"
+    echo "   │  📝 WORDPRESS        : http://$ACTUAL_IP/wp-admin                       │"
+    echo "   │                                                                         │"
+    echo "   │  🗄️  PHPMYADMIN      : http://$ACTUAL_IP/phpmyadmin                     │"
+    echo "   │                                                                         │"
+    echo "   │  🔐 DVWA             : http://$ACTUAL_IP/setup.php                       │"
+    echo "   │                                                                         │"
+    echo "   └─────────────────────────────────────────────────────────────────────────┘"
     echo ""
-    echo -e "${CYAN}💻 REMOTE:${NC}"
-    echo "   SSH   : ssh root@$IP_ADDR"
-    echo "   Samba : \\\\$IP_ADDR\\wikrama-share"
+    echo -e "${YELLOW}🔑 LOGIN INFORMASI:${NC}"
+    echo "   ┌─────────────────────────────────────────────────────────────────────────┐"
+    echo "   │  phpMyAdmin  :  username: root     |  password: rootpass123              │"
+    echo "   │  MySQL       :  username: root     |  password: rootpass123              │"
+    echo "   │  WordPress   :  (isi sendiri saat pertama kali akses)                    │"
+    echo "   │  DVWA        :  username: admin    |  password: password                 │"
+    echo "   └─────────────────────────────────────────────────────────────────────────┘"
     echo ""
-    echo -e "${GREEN}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}💻 REMOTE ACCESS:${NC}"
+    echo "   ┌─────────────────────────────────────────────────────────────────────────┐"
+    echo "   │  🔌 SSH    : ssh root@$ACTUAL_IP                                        │"
+    echo "   │  📁 SAMBA  : \\\\$ACTUAL_IP\\wikrama-share                                │"
+    echo "   └─────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+    echo -e "${GREEN}══════════════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}              TERIMA KASIH TELAH MENGGUNAKAN FAHRITECH!                  ${NC}"
+    echo -e "${GREEN}══════════════════════════════════════════════════════════════════════════${NC}"
 }
 
 # =================== MENU UTAMA ===================
