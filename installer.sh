@@ -1,7 +1,11 @@
 #!/bin/bash
 
 # ======================================================
-# AUTOMATION SCRIPT - FAHRITECH SERVER SMK WIKRAMA
+# INSTALLER LENGKAP - FAHRITECH SMK WIKRAMA
+# ======================================================
+# Fitur: Setting IP (BEBAS), DHCP (Range 100-200), DNS,
+# Apache2, PHP, MySQL, WordPress, phpMyAdmin, CRUD Siswa,
+# SSH, Samba, DVWA
 # ======================================================
 
 # Warna
@@ -85,7 +89,7 @@ menu_set_ip() {
     echo "   192.168.1.10"
     echo "   192.168.27.50"
     echo "   10.10.10.5"
-    echo -e "${GREEN}   (BEBAS, tidak ada batasan!)$ {NC}"
+    echo -e "${GREEN}   (BEBAS, tidak ada batasan!)${NC}"
     echo ""
     
     while true; do
@@ -165,7 +169,6 @@ menu_set_dhcp() {
         subnet=$(echo $IP_ADDR | cut -d'.' -f1-3)
     fi
     
-    # RANGE DHCP 100-200
     cat > /etc/dhcp/dhcpd.conf <<EOF
 subnet ${subnet}.0 netmask 255.255.255.0 {
     range ${subnet}.100 ${subnet}.200;
@@ -320,6 +323,7 @@ EOF
     
     echo ""
     echo -e "${GREEN}✅ Apache2 & PHP berhasil diinstall${NC}"
+    echo -e "${GREEN}✅ Web: http://${domain_web}${NC}"
 }
 
 # =================== MENU 5: WORDPRESS ===================
@@ -377,7 +381,7 @@ menu_set_phpmyadmin() {
     echo -e "${YELLOW}🔑 Login: root / rootpass123${NC}"
 }
 
-# =================== MENU 7: CRUD SUPER KEREN ===================
+# =================== MENU 7: CRUD SISWA (Nama, NIS, Rombel) ===================
 menu_set_crud() {
     echo -e "${BLUE}==================== 7. MEMBUAT CRUD SISWA ====================${NC}"
     
@@ -389,32 +393,22 @@ menu_set_crud() {
         id INT AUTO_INCREMENT PRIMARY KEY,
         nama VARCHAR(100) NOT NULL,
         nis VARCHAR(20) NOT NULL UNIQUE,
-        rombel VARCHAR(50) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        rombel VARCHAR(50) NOT NULL
     );" 2>/dev/null
     
-    cat > /var/www/html/crud_siswa.php <<'EOF'
+    cat > /var/www/html/crud_siswa.php <<'PHP_EOF'
 <?php
-$host = 'localhost';
-$user = 'root';
-$pass = 'rootpass123';
-$db = 'sekolah';
-
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
-}
+$conn = new mysqli("localhost", "root", "rootpass123", "sekolah");
+if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
 
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['action'])) {
         $action = $_POST['action'];
-        
         if ($action == 'add') {
             $nama = $conn->real_escape_string($_POST['nama']);
             $nis = $conn->real_escape_string($_POST['nis']);
             $rombel = $conn->real_escape_string($_POST['rombel']);
-            
             $check = $conn->query("SELECT id FROM siswa WHERE nis='$nis'");
             if ($check->num_rows > 0) {
                 $message = '<div class="alert error">❌ NIS sudah terdaftar!</div>';
@@ -429,7 +423,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $nama = $conn->real_escape_string($_POST['nama']);
             $nis = $conn->real_escape_string($_POST['nis']);
             $rombel = $conn->real_escape_string($_POST['rombel']);
-            
             if ($conn->query("UPDATE siswa SET nama='$nama', nis='$nis', rombel='$rombel' WHERE id=$id")) {
                 $message = '<div class="alert success">✅ Data berhasil diupdate!</div>';
             }
@@ -449,10 +442,8 @@ if (isset($_GET['edit'])) {
     $result = $conn->query("SELECT * FROM siswa WHERE id=$id");
     $edit_data = $result->fetch_assoc();
 }
-
 $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
 ?>
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -504,6 +495,7 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
             border-radius: 10px;
             font-size: 14px;
             transition: all 0.3s;
+            font-family: 'Poppins', sans-serif;
         }
         .form-group input:focus {
             outline: none;
@@ -521,6 +513,7 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            font-family: 'Poppins', sans-serif;
         }
         .btn-primary {
             background: linear-gradient(135deg, #667eea, #764ba2);
@@ -530,9 +523,9 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102,126,234,0.4);
         }
-        .btn-edit { background: #ffc107; color: #333; }
+        .btn-edit { background: #ffc107; color: #333; padding: 8px 15px; border-radius: 8px; text-decoration: none; display: inline-block; }
         .btn-edit:hover { background: #ffb300; }
-        .btn-delete { background: #dc3545; color: white; }
+        .btn-delete { background: #dc3545; color: white; padding: 8px 15px; border-radius: 8px; border: none; cursor: pointer; }
         .btn-delete:hover { background: #c82333; }
         .alert {
             padding: 15px 20px;
@@ -552,16 +545,15 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
         table th { padding: 15px; text-align: left; font-weight: 500; }
         table td { padding: 15px; border-bottom: 1px solid #e0e0e0; }
         table tbody tr:hover { background: #f8f9fa; }
-        .action-buttons { display: flex; gap: 10px; }
-        .action-buttons button { padding: 8px 15px; font-size: 12px; }
+        .action-buttons { display: flex; gap: 10px; align-items: center; }
         .modal {
-            display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             background: rgba(0,0,0,0.5);
+            display: flex;
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -581,16 +573,19 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
             padding: 20px 25px;
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
+            border-radius: 20px 20px 0 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
+        .modal-header h3 { font-size: 1.3rem; }
         .modal-header .close {
             font-size: 28px;
             cursor: pointer;
             background: none;
             border: none;
             color: white;
+            text-decoration: none;
         }
         .modal-body { padding: 25px; }
         .empty-state { text-align: center; padding: 40px; color: #999; }
@@ -650,14 +645,16 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
                                 <td><?php echo htmlspecialchars($row['nis']); ?></td>
                                 <td><?php echo htmlspecialchars($row['rombel']); ?></td>
                                 <td class="action-buttons">
-                                    <a href="?edit=<?php echo $row['id']; ?>">
-                                        <button type="button" class="btn btn-edit"><i class="fas fa-edit"></i> Edit</button>
+                                    <a href="?edit=<?php echo $row['id']; ?>" class="btn-edit">
+                                        <i class="fas fa-edit"></i> Edit
                                     </a>
                                     <form method="POST" action="" style="display:inline;" onsubmit="return confirm('Yakin ingin menghapus data ini?')">
                                         <input type="hidden" name="id" value="<?php echo $row['id']; ?>">
-                                        <button type="submit" name="action" value="delete" class="btn btn-delete"><i class="fas fa-trash"></i> Hapus</button>
+                                        <button type="submit" name="action" value="delete" class="btn-delete">
+                                            <i class="fas fa-trash"></i> Hapus
+                                        </button>
                                     </form>
-                                </td>
+                                 </td>
                             </tr>
                             <?php endwhile; ?>
                         </tbody>
@@ -679,11 +676,11 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
     </div>
     
     <?php if ($edit_data): ?>
-    <div class="modal" style="display: flex;">
+    <div class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3><i class="fas fa-edit"></i> Edit Data Siswa</h3>
-                <button class="close" onclick="window.location.href='crud_siswa.php'">&times;</button>
+                <a href="crud_siswa.php" class="close">&times;</a>
             </div>
             <div class="modal-body">
                 <form method="POST" action="">
@@ -715,7 +712,7 @@ $siswa = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
     <?php endif; ?>
 </body>
 </html>
-EOF
+PHP_EOF
     
     rm -f /var/www/html/crud.php 2>/dev/null
     
@@ -808,6 +805,68 @@ menu_test_dns() {
     nslookup www.$DOMAIN $DNS_IP 2>/dev/null || echo -e "${RED}Gagal${NC}"
 }
 
+# =================== MENU 11: INSTALL SEMUA SEKALIGUS ===================
+menu_install_all() {
+    echo -e "${BLUE}==================== INSTALL SEMUA FITUR ====================${NC}"
+    
+    # Setting IP dulu
+    menu_set_ip
+    if [ $? -ne 0 ]; then return 1; fi
+    
+    # DHCP
+    menu_set_dhcp
+    if [ $? -ne 0 ]; then return 1; fi
+    
+    # DNS
+    menu_set_dns
+    if [ $? -ne 0 ]; then return 1; fi
+    
+    # Apache
+    menu_set_apache
+    if [ $? -ne 0 ]; then return 1; fi
+    
+    # WordPress
+    menu_set_wordpress
+    if [ $? -ne 0 ]; then return 1; fi
+    
+    # phpMyAdmin
+    menu_set_phpmyadmin
+    if [ $? -ne 0 ]; then return 1; fi
+    
+    # CRUD
+    menu_set_crud
+    if [ $? -ne 0 ]; then return 1; fi
+    
+    # Samba
+    menu_set_samba
+    if [ $? -ne 0 ]; then return 1; fi
+    
+    # DVWA
+    menu_set_github_dvwa
+    if [ $? -ne 0 ]; then return 1; fi
+    
+    echo ""
+    echo -e "${GREEN}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}              ✅ SEMUA FITUR BERHASIL DIINSTALL! ✅${NC}"
+    echo -e "${GREEN}════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${CYAN}🌐 AKSES WEB SERVER:${NC}"
+    echo "   📍 Website Utama    : http://$IP_ADDR/"
+    echo "   📍 CRUD Siswa       : http://$IP_ADDR/crud_siswa.php"
+    echo "   📍 WordPress        : http://$IP_ADDR/wp-admin"
+    echo "   📍 phpMyAdmin       : http://$IP_ADDR/phpmyadmin"
+    echo "   📍 DVWA             : http://$IP_ADDR/setup.php"
+    echo ""
+    echo -e "${YELLOW}🔑 LOGIN:${NC}"
+    echo "   📍 phpMyAdmin : root / rootpass123"
+    echo "   📍 DVWA       : admin / password"
+    echo ""
+    echo -e "${CYAN}💻 REMOTE:${NC}"
+    echo "   📍 SSH    : ssh root@$IP_ADDR"
+    echo "   📍 Samba  : \\\\$IP_ADDR\\wikrama-share"
+    echo ""
+}
+
 # =================== MENU UTAMA ===================
 show_menu() {
     echo -e "${BLUE}========================================${NC}"
@@ -830,6 +889,7 @@ show_menu() {
     echo -e "${GREEN} 8)${NC} Setup SSH & Samba"
     echo -e "${GREEN} 9)${NC} Clone GitHub & DVWA"
     echo -e "${GREEN}10)${NC} Test NSLOOKUP"
+    echo -e "${CYAN}11)${NC} INSTALL SEMUA SEKALIGUS (REKOMENDASI)"
     echo -e "${RED} 0)${NC} EXIT"
     echo -e "${BLUE}========================================${NC}"
     echo ""
@@ -839,7 +899,7 @@ show_menu() {
 while true; do
     show_banner
     show_menu
-    read -p "➡️  Pilih menu [0-10]: " choice
+    read -p "➡️  Pilih menu [0-11]: " choice
     
     case $choice in
         1) menu_set_ip ;;
@@ -852,6 +912,7 @@ while true; do
         8) menu_set_samba ;;
         9) menu_set_github_dvwa ;;
         10) menu_test_dns ;;
+        11) menu_install_all ;;
         0) 
             echo -e "${GREEN}Terima kasih telah menggunakan FAHRITECH!${NC}"
             exit 0
