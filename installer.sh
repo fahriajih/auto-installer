@@ -3,8 +3,6 @@
 # ======================================================
 # FINAL INSTALLER - FAHRITECH SMK WIKRAMA
 # ======================================================
-# VERSI: 4.0 - FULLY WORKING
-# ======================================================
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -16,8 +14,6 @@ NC='\033[0m'
 # Variabel
 INTERFACE=""
 IP_ADDR=""
-NETMASK="255.255.255.0"
-GATEWAY=""
 DOMAIN=""
 DNS_IP=""
 
@@ -44,20 +40,23 @@ validate_ip() {
     [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && return 0 || return 1
 }
 
-# =================== MENU 1: SETTING IP (FIX) ===================
+# =================== MENU 1: SETTING IP (SIMPLIFIED) ===================
 menu_set_ip() {
     echo -e "${BLUE}══════════════════ 1. SETTING IP ADDRESS ══════════════════${NC}"
     
-    # Tampilkan interface yang UP
-    echo -e "${GREEN}Interface yang tersedia:${NC}"
-    interfaces=($(ip link show | grep -E '^[0-9]+:' | grep -v lo | awk -F': ' '{print $2}' | cut -d'@' -f1))
+    # Tampilkan interface
+    echo -e "${GREEN}Pilih interface:${NC}"
+    interfaces=($(ip link show | grep -E '^[0-9]+: ens|eth' | awk -F': ' '{print $2}' | cut -d'@' -f1))
+    
+    if [ ${#interfaces[@]} -eq 0 ]; then
+        interfaces=($(ip link show | grep -E '^[0-9]+:' | grep -v lo | awk -F': ' '{print $2}' | cut -d'@' -f1 | head -2))
+    fi
     
     for i in "${!interfaces[@]}"; do
-        status=$(ip link show ${interfaces[$i]} | grep -o "UP" || echo "DOWN")
-        echo "  ${CYAN}$((i+1)))${NC} ${interfaces[$i]} [${status}]"
+        echo "  ${CYAN}$((i+1)))${NC} ${interfaces[$i]}"
     done
     
-    read -p "Pilih interface [1-${#interfaces[@]}]: " pilih_interface
+    read -p "Masukkan nomor interface: " pilih_interface
     INTERFACE="${interfaces[$((pilih_interface-1))]}"
     
     echo -e "${YELLOW}Contoh IP: 192.168.1.10, 192.168.27.50, 10.10.10.5${NC}"
@@ -66,25 +65,18 @@ menu_set_ip() {
         validate_ip "$IP_ADDR" && break || echo -e "${RED}Format IP salah!${NC}"
     done
     
-    read -p "Masukkan Netmask (default 255.255.255.0): " input_netmask
-    NETMASK=${input_netmask:-255.255.255.0}
+    # Otomatis
+    NETMASK="255.255.255.0"
+    subnet=$(echo $IP_ADDR | cut -d'.' -f1-3)
+    GATEWAY="${subnet}.1"
     
-    read -p "Masukkan Gateway: " GATEWAY
-    
-    # HIDUPKAN INTERFACE DULU
-    echo -e "${YELLOW}Menghidupkan interface $INTERFACE...${NC}"
+    # Hidupkan interface
     ip link set $INTERFACE up
-    
-    # Hapus IP lama
     ip addr flush dev $INTERFACE 2>/dev/null
-    
-    # Set IP baru
     ip addr add $IP_ADDR/24 dev $INTERFACE
-    
-    # Set gateway
     ip route add default via $GATEWAY 2>/dev/null
     
-    # Simpan ke /etc/network/interfaces
+    # Simpan konfigurasi
     cat > /etc/network/interfaces <<EOF
 auto lo
 iface lo inet loopback
@@ -97,34 +89,23 @@ iface $INTERFACE inet static
     dns-nameservers 8.8.8.8 8.8.4.4
 EOF
     
-    # Restart network
-    systemctl restart networking 2>/dev/null || service networking restart 2>/dev/null || /etc/init.d/networking restart 2>/dev/null
+    systemctl restart networking 2>/dev/null || service networking restart 2>/dev/null
     
     echo ""
     echo -e "${GREEN}✅ IP $IP_ADDR berhasil diset ke $INTERFACE${NC}"
     echo -e "${GREEN}✅ Netmask: $NETMASK${NC}"
     echo -e "${GREEN}✅ Gateway: $GATEWAY${NC}"
-    echo ""
-    echo -e "${YELLOW}📌 Cek hasil: ip addr show $INTERFACE${NC}"
 }
 
 # =================== MENU 2: DHCP ===================
 menu_set_dhcp() {
     echo -e "${BLUE}══════════════════ 2. SETUP DHCP SERVER ══════════════════${NC}"
     
-    interfaces=($(ip link show | grep -E '^[0-9]+:' | grep -v lo | awk -F': ' '{print $2}' | cut -d'@' -f1))
-    
-    echo -e "${GREEN}Pilih interface untuk DHCP:${NC}"
-    for i in "${!interfaces[@]}"; do
-        echo "  ${CYAN}$((i+1)))${NC} ${interfaces[$i]}"
-    done
-    read -p "Pilihan [1-${#interfaces[@]}]: " pilih_dhcp
-    DHCP_INTERFACE="${interfaces[$((pilih_dhcp-1))]}"
-    
     apt update -qq
     apt install isc-dhcp-server -y
     
     subnet=$(echo $IP_ADDR | cut -d'.' -f1-3)
+    GATEWAY="${subnet}.1"
     
     cat > /etc/dhcp/dhcpd.conf <<EOF
 subnet ${subnet}.0 netmask 255.255.255.0 {
@@ -134,7 +115,7 @@ subnet ${subnet}.0 netmask 255.255.255.0 {
 }
 EOF
     
-    sed -i "s/INTERFACESv4=\".*\"/INTERFACESv4=\"$DHCP_INTERFACE\"/" /etc/default/isc-dhcp-server
+    sed -i "s/INTERFACESv4=\".*\"/INTERFACESv4=\"$INTERFACE\"/" /etc/default/isc-dhcp-server
     systemctl restart isc-dhcp-server
     systemctl enable isc-dhcp-server
     
@@ -307,48 +288,24 @@ EOF_INDEX
 $conn = new mysqli("localhost", "root", "rootpass123", "sekolah");
 if ($conn->connect_error) die("Koneksi gagal: " . $conn->connect_error);
 
-// TAMBAH
 if (isset($_POST['tambah'])) {
-    $nama = $_POST['nama'];
-    $nis = $_POST['nis'];
-    $rombel = $_POST['rombel'];
-    $check = $conn->query("SELECT id FROM siswa WHERE nis='$nis'");
-    if ($check->num_rows > 0) {
-        $pesan = "❌ NIS sudah terdaftar!";
-        $jenis = "error";
-    } else {
-        $conn->query("INSERT INTO siswa (nama, nis, rombel) VALUES ('$nama', '$nis', '$rombel')");
-        $pesan = "✅ Data berhasil ditambahkan!";
-        $jenis = "success";
-    }
+    $conn->query("INSERT INTO siswa (nama, nis, rombel) VALUES ('$_POST[nama]', '$_POST[nis]', '$_POST[rombel]')");
+    $pesan = "✅ Data ditambahkan!";
 }
-
-// EDIT
 if (isset($_POST['update'])) {
-    $id = $_POST['id'];
-    $nama = $_POST['nama'];
-    $nis = $_POST['nis'];
-    $rombel = $_POST['rombel'];
-    $conn->query("UPDATE siswa SET nama='$nama', nis='$nis', rombel='$rombel' WHERE id=$id");
-    $pesan = "✅ Data berhasil diupdate!";
-    $jenis = "success";
+    $conn->query("UPDATE siswa SET nama='$_POST[nama]', nis='$_POST[nis]', rombel='$_POST[rombel]' WHERE id=$_POST[id]");
+    $pesan = "✅ Data diupdate!";
 }
-
-// HAPUS
 if (isset($_GET['hapus'])) {
-    $id = $_GET['hapus'];
-    $conn->query("DELETE FROM siswa WHERE id=$id");
-    $pesan = "✅ Data berhasil dihapus!";
-    $jenis = "success";
+    $conn->query("DELETE FROM siswa WHERE id=$_GET[hapus]");
+    $pesan = "✅ Data dihapus!";
 }
 
 $edit = null;
 if (isset($_GET['edit'])) {
-    $id = $_GET['edit'];
-    $result = $conn->query("SELECT * FROM siswa WHERE id=$id");
+    $result = $conn->query("SELECT * FROM siswa WHERE id=$_GET[edit]");
     $edit = $result->fetch_assoc();
 }
-
 $data = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
 ?>
 <!DOCTYPE html>
@@ -363,24 +320,17 @@ $data = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
         .card{background:white;border-radius:10px;padding:25px;margin-bottom:30px;box-shadow:0 5px 20px rgba(0,0,0,0.2);}
         .card h2{margin-bottom:20px;color:#667eea;}
         .form-group{margin-bottom:15px;}
-        .form-group label{display:block;margin-bottom:5px;font-weight:bold;}
         .form-group input{width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;}
         button{background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;}
-        button:hover{opacity:0.9;}
         table{width:100%;border-collapse:collapse;}
         th,td{padding:12px;text-align:left;border-bottom:1px solid #ddd;}
         th{background:linear-gradient(135deg,#667eea,#764ba2);color:white;}
-        tr:hover{background:#f5f5f5;}
-        .btn-edit{background:#ffc107;color:#333;padding:5px 10px;border-radius:5px;text-decoration:none;font-size:12px;}
-        .btn-hapus{background:#dc3545;color:white;padding:5px 10px;border-radius:5px;text-decoration:none;font-size:12px;}
+        .btn-edit{background:#ffc107;color:#333;padding:5px 10px;border-radius:5px;text-decoration:none;}
+        .btn-hapus{background:#dc3545;color:white;padding:5px 10px;border-radius:5px;text-decoration:none;}
         .btn-batal{background:#6c757d;color:white;padding:5px 10px;border-radius:5px;text-decoration:none;margin-left:10px;}
-        .alert{padding:12px;border-radius:5px;margin-bottom:20px;text-align:center;}
-        .alert-success{background:#d4edda;color:#155724;}
-        .alert-error{background:#f8d7da;color:#721c24;}
-        .aksi{display:flex;gap:10px;}
+        .alert{padding:12px;border-radius:5px;margin-bottom:20px;text-align:center;background:#d4edda;color:#155724;}
         .nav{margin-bottom:20px;}
         .nav a{color:white;text-decoration:none;background:rgba(255,255,255,0.2);padding:8px 15px;border-radius:5px;margin-right:10px;}
-        .kosong{text-align:center;padding:40px;color:#999;}
     </style>
 </head>
 <body>
@@ -392,22 +342,20 @@ $data = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
         <a href="phpmyadmin">🗄️ phpMyAdmin</a>
     </div>
     <h1>📋 Manajemen Data Siswa</h1>
-    <?php if(isset($pesan)): ?>
-    <div class="alert alert-<?php echo $jenis; ?>"><?php echo $pesan; ?></div>
-    <?php endif; ?>
+    <?php if(isset($pesan)) echo "<div class='alert'>$pesan</div>"; ?>
     
     <div class="card">
         <h2><?php echo $edit ? '✏️ Edit Data' : '➕ Tambah Data'; ?></h2>
         <form method="POST">
             <?php if($edit): ?><input type="hidden" name="id" value="<?php echo $edit['id']; ?>"><?php endif; ?>
-            <div class="form-group"><label>📛 Nama Lengkap</label><input type="text" name="nama" value="<?php echo $edit ? htmlspecialchars($edit['nama']) : ''; ?>" required></div>
-            <div class="form-group"><label>🆔 NIS</label><input type="text" name="nis" value="<?php echo $edit ? htmlspecialchars($edit['nis']) : ''; ?>" required></div>
-            <div class="form-group"><label>🏫 Rombel</label><input type="text" name="rombel" value="<?php echo $edit ? htmlspecialchars($edit['rombel']) : ''; ?>" placeholder="Contoh: XI RPL 1" required></div>
+            <div class="form-group"><input type="text" name="nama" placeholder="Nama Lengkap" value="<?php echo $edit ? htmlspecialchars($edit['nama']) : ''; ?>" required></div>
+            <div class="form-group"><input type="text" name="nis" placeholder="NIS" value="<?php echo $edit ? htmlspecialchars($edit['nis']) : ''; ?>" required></div>
+            <div class="form-group"><input type="text" name="rombel" placeholder="Rombel (contoh: XI RPL 1)" value="<?php echo $edit ? htmlspecialchars($edit['rombel']) : ''; ?>" required></div>
             <?php if($edit): ?>
-                <button type="submit" name="update">💾 Update Data</button>
+                <button type="submit" name="update">💾 Update</button>
                 <a href="crud_siswa.php" class="btn-batal">❌ Batal</a>
             <?php else: ?>
-                <button type="submit" name="tambah">💾 Simpan Data</button>
+                <button type="submit" name="tambah">💾 Simpan</button>
             <?php endif; ?>
         </form>
     </div>
@@ -421,19 +369,16 @@ $data = $conn->query("SELECT * FROM siswa ORDER BY id DESC");
             <?php $no=1; while($row=$data->fetch_assoc()): ?>
             <tr>
                 <td><?php echo $no++; ?></td>
-                <td><strong><?php echo htmlspecialchars($row['nama']); ?></strong></td>
+                <td><?php echo htmlspecialchars($row['nama']); ?></td>
                 <td><?php echo htmlspecialchars($row['nis']); ?></td>
                 <td><?php echo htmlspecialchars($row['rombel']); ?></td>
-                <td class="aksi">
-                    <a href="?edit=<?php echo $row['id']; ?>" class="btn-edit">✏️ Edit</a>
-                    <a href="?hapus=<?php echo $row['id']; ?>" class="btn-hapus" onclick="return confirm('Yakin hapus?')">🗑️ Hapus</a>
-                </td>
+                <td><a href="?edit=<?php echo $row['id']; ?>" class="btn-edit">✏️ Edit</a> <a href="?hapus=<?php echo $row['id']; ?>" class="btn-hapus" onclick="return confirm('Yakin?')">🗑️ Hapus</a></td>
             </tr>
             <?php endwhile; ?>
             </tbody>
         </table>
         <?php else: ?>
-        <div class="kosong"><p>📭 Belum ada data siswa</p><p>Silakan tambah data melalui form di atas</p></div>
+        <p style="text-align:center;padding:40px;">📭 Belum ada data. Silakan tambah!</p>
         <?php endif; ?>
     </div>
 </div>
@@ -487,14 +432,31 @@ menu_set_dvwa() {
     echo -e "${GREEN}✅ DVWA berhasil!${NC}"
 }
 
-# =================== MENU 11: TEST DNS ===================
-menu_test_dns() {
-    echo -e "${BLUE}══════════════════ 11. TEST NSLOOKUP ══════════════════${NC}"
-    if [ -z "$DOMAIN" ]; then
-        echo -e "${RED}Setting DNS dulu (Menu 3)!${NC}"
-        return 1
-    fi
-    nslookup $DOMAIN $DNS_IP
+# =================== MENU 11: TAMPILKAN AKSES ===================
+menu_show_access() {
+    echo -e "${BLUE}══════════════════ 11. INFO AKSES WEB ══════════════════${NC}"
+    
+    ACTUAL_IP=$(ip addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v 127.0.0.1 | head -1)
+    
+    echo ""
+    echo -e "${GREEN}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}🌐 AKSES WEB SERVER (BUKA DI BROWSER):${NC}"
+    echo -e "${GREEN}════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "   🔥 ${YELLOW}WEBSITE UTAMA${NC}    : ${CYAN}http://$ACTUAL_IP/${NC}"
+    echo ""
+    echo -e "   📋 ${YELLOW}CRUD SISWA${NC}       : ${CYAN}http://$ACTUAL_IP/crud_siswa.php${NC}"
+    echo ""
+    echo -e "   📝 ${YELLOW}WORDPRESS${NC}        : ${CYAN}http://$ACTUAL_IP/wp-admin${NC}"
+    echo ""
+    echo -e "   🗄️  ${YELLOW}PHPMYADMIN${NC}      : ${CYAN}http://$ACTUAL_IP/phpmyadmin${NC}"
+    echo ""
+    echo -e "   🔐 ${YELLOW}DVWA${NC}             : ${CYAN}http://$ACTUAL_IP/setup.php${NC}"
+    echo ""
+    echo -e "${GREEN}════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}🔑 LOGIN phpMyAdmin: root / rootpass123${NC}"
+    echo -e "${YELLOW}🔑 LOGIN DVWA: admin / password${NC}"
+    echo -e "${GREEN}════════════════════════════════════════════════════════════════${NC}"
 }
 
 # =================== MENU 12: INSTALL SEMUA ===================
@@ -515,48 +477,7 @@ menu_install_all() {
     systemctl restart apache2
     systemctl restart mysql
     
-    # Cek IP yang aktif
-    ACTUAL_IP=$(ip addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v 127.0.0.1 | head -1)
-    
-    clear
-    echo -e "${GREEN}"
-    echo "╔══════════════════════════════════════════════════════════════════════════╗"
-    echo "║                    ✅ SEMUA FITUR BERHASIL DIINSTALL! ✅                  ║"
-    echo "╚══════════════════════════════════════════════════════════════════════════╝"
-    echo -e "${NC}"
-    echo ""
-    echo -e "${CYAN}🌐 AKSES WEB SERVER (BUKA DI BROWSER):${NC}"
-    echo "   ┌─────────────────────────────────────────────────────────────────────────┐"
-    echo "   │                                                                         │"
-    echo "   │  🔥 WEBSITE UTAMA    : http://$ACTUAL_IP/                               │"
-    echo "   │                                                                         │"
-    echo "   │  📋 CRUD SISWA       : http://$ACTUAL_IP/crud_siswa.php                 │"
-    echo "   │                                                                         │"
-    echo "   │  📝 WORDPRESS        : http://$ACTUAL_IP/wp-admin                       │"
-    echo "   │                                                                         │"
-    echo "   │  🗄️  PHPMYADMIN      : http://$ACTUAL_IP/phpmyadmin                     │"
-    echo "   │                                                                         │"
-    echo "   │  🔐 DVWA             : http://$ACTUAL_IP/setup.php                       │"
-    echo "   │                                                                         │"
-    echo "   └─────────────────────────────────────────────────────────────────────────┘"
-    echo ""
-    echo -e "${YELLOW}🔑 LOGIN INFORMASI:${NC}"
-    echo "   ┌─────────────────────────────────────────────────────────────────────────┐"
-    echo "   │  phpMyAdmin  :  username: root     |  password: rootpass123              │"
-    echo "   │  MySQL       :  username: root     |  password: rootpass123              │"
-    echo "   │  WordPress   :  (isi sendiri saat pertama kali akses)                    │"
-    echo "   │  DVWA        :  username: admin    |  password: password                 │"
-    echo "   └─────────────────────────────────────────────────────────────────────────┘"
-    echo ""
-    echo -e "${CYAN}💻 REMOTE ACCESS:${NC}"
-    echo "   ┌─────────────────────────────────────────────────────────────────────────┐"
-    echo "   │  🔌 SSH    : ssh root@$ACTUAL_IP                                        │"
-    echo "   │  📁 SAMBA  : \\\\$ACTUAL_IP\\wikrama-share                                │"
-    echo "   └─────────────────────────────────────────────────────────────────────────┘"
-    echo ""
-    echo -e "${GREEN}══════════════════════════════════════════════════════════════════════════${NC}"
-    echo -e "${GREEN}              TERIMA KASIH TELAH MENGGUNAKAN FAHRITECH!                  ${NC}"
-    echo -e "${GREEN}══════════════════════════════════════════════════════════════════════════${NC}"
+    menu_show_access
 }
 
 # =================== MENU UTAMA ===================
@@ -568,10 +489,9 @@ show_menu() {
     echo -e "${YELLOW}📊 STATUS:${NC}"
     echo -e "   Interface : ${GREEN}${INTERFACE:-Belum}${NC}"
     echo -e "   IP Address: ${GREEN}${IP_ADDR:-Belum}${NC}"
-    echo -e "   Domain    : ${GREEN}${DOMAIN:-Belum}${NC}"
     echo ""
     echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
-    echo -e "${GREEN}  1)${NC} Setting IP (BEBAS)"
+    echo -e "${GREEN}  1)${NC} Setting IP (cuma minta IP aja)"
     echo -e "${GREEN}  2)${NC} DHCP Server (Range 100-200)"
     echo -e "${GREEN}  3)${NC} DNS Server"
     echo -e "${GREEN}  4)${NC} Apache2 & PHP"
@@ -581,7 +501,7 @@ show_menu() {
     echo -e "${GREEN}  8)${NC} Website + CRUD Siswa"
     echo -e "${GREEN}  9)${NC} SSH & Samba"
     echo -e "${GREEN} 10)${NC} DVWA"
-    echo -e "${GREEN} 11)${NC} Test NSLOOKUP"
+    echo -e "${GREEN} 11)${NC} TAMPILKAN INFO AKSES WEB"
     echo -e "${CYAN} 12)${NC} INSTALL SEMUA SEKALIGUS ⭐"
     echo -e "${RED}  0)${NC} EXIT"
     echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
@@ -603,7 +523,7 @@ while true; do
         8) menu_set_website ;;
         9) menu_set_samba ;;
         10) menu_set_dvwa ;;
-        11) menu_test_dns ;;
+        11) menu_show_access ;;
         12) menu_install_all ;;
         0) echo -e "${GREEN}Terima kasih!${NC}"; exit 0 ;;
         *) echo -e "${RED}Pilihan salah!${NC}"; sleep 1 ;;
